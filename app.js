@@ -1841,7 +1841,10 @@ function renderMarketMoverList(container, list, label) {
           <div class="rank-main rank-main-compact">
             <div class="rank-title-wrap">
               <div class="item-title">${item.name}</div>
-              <div class="item-subtitle">${item.code || ""}</div>
+              <div class="item-subtitle">
+                <span>${item.code || ""}</span>
+                <span>¥${Number(item.price || 0).toFixed(2)}</span>
+              </div>
             </div>
             <div class="rank-side rank-side-compact">
               <strong class="${displayChange >= 0 ? "trend-up" : "trend-down"}">${formatSigned(displayChange)}%</strong>
@@ -1884,6 +1887,7 @@ function renderRankingList(container, list, key, label) {
               <div class="item-title">${item.name}</div>
               <div class="item-subtitle">
                 <span>${item.code || ""}</span>
+                <span>¥${Number(item.price || item.currentPrice || 0).toFixed(2)}</span>
                 <span class="tag ${mapRiskClass(riskLevel)}">风险 ${riskLevel}</span>
               </div>
             </div>
