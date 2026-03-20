@@ -1276,38 +1276,38 @@ function renderWatchlist() {
             </div>
           </div>
           </div>
-          <div class="watch-market-board">
-            <div class="watch-stat-card">
-              <span class="watch-stat-label">真实 5 日</span>
-              <strong class="${recent5 >= 0 ? "trend-up" : "trend-down"}">${formatSigned(recent5)}%</strong>
-              <small class="watch-stat-note">最近收盘走势</small>
-            </div>
-            <div class="watch-stat-card">
-              <span class="watch-stat-label">综合判断</span>
-              <strong class="${mapTrendClass(summary.direction)}">${summary.direction}</strong>
-              <small class="watch-stat-note">${summary.detail}</small>
-            </div>
-            <div class="watch-stat-card">
-              <span class="watch-stat-label">最高目标</span>
-              <strong class="${summary.bestGap >= 0 ? "trend-up" : "trend-down"}">${formatSigned(summary.bestGap)}%</strong>
-              <small class="watch-stat-note">${formatMoney(summary.bestTarget)}</small>
-            </div>
-          </div>
-          <div class="watch-meta-row">
-            <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
-            ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
-            ${item.predictions?.length ? `<span class="tag">模型 ${item.predictions.length} 家</span>` : ""}
-          </div>
-          <div class="watch-model-scan">${quickRows}</div>
-          <div class="action-row">
-            <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">${expanded ? "收起" : "展开"}</button>
-            <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
-            <button class="primary-btn" data-action="add-watch-cart" data-code="${item.code}">加入虚拟交易</button>
-            <button class="text-btn" data-action="remove-watch" data-code="${item.code}">删除</button>
-          </div>
           ${
             expanded
               ? `
+                <div class="watch-market-board">
+                  <div class="watch-stat-card">
+                    <span class="watch-stat-label">真实 5 日</span>
+                    <strong class="${recent5 >= 0 ? "trend-up" : "trend-down"}">${formatSigned(recent5)}%</strong>
+                    <small class="watch-stat-note">最近收盘走势</small>
+                  </div>
+                  <div class="watch-stat-card">
+                    <span class="watch-stat-label">综合判断</span>
+                    <strong class="${mapTrendClass(summary.direction)}">${summary.direction}</strong>
+                    <small class="watch-stat-note">${summary.detail}</small>
+                  </div>
+                  <div class="watch-stat-card">
+                    <span class="watch-stat-label">最高目标</span>
+                    <strong class="${summary.bestGap >= 0 ? "trend-up" : "trend-down"}">${formatSigned(summary.bestGap)}%</strong>
+                    <small class="watch-stat-note">${formatMoney(summary.bestTarget)}</small>
+                  </div>
+                </div>
+                <div class="watch-meta-row">
+                  <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
+                  ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
+                  ${item.predictions?.length ? `<span class="tag">模型 ${item.predictions.length} 家</span>` : ""}
+                </div>
+                <div class="watch-model-scan">${quickRows}</div>
+                <div class="action-row">
+                  <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">收起</button>
+                  <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
+                  <button class="primary-btn" data-action="add-watch-cart" data-code="${item.code}">加入虚拟交易</button>
+                  <button class="text-btn" data-action="remove-watch" data-code="${item.code}">删除</button>
+                </div>
                 <div class="watch-expanded">
                   ${buildMarketPredictionChart(item)}
                   ${buildWatchComparison(item)}

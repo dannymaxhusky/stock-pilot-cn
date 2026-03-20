@@ -804,6 +804,10 @@ textarea {
   padding: 14px 14px 13px;
 }
 
+.watch-card:has(.watch-summary-trigger[aria-expanded="false"]) {
+  padding-bottom: 10px;
+}
+
 .watch-card::before {
   content: "";
   position: absolute;
@@ -823,7 +827,7 @@ textarea {
 
 .watch-summary-trigger {
   width: 100%;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
   background: transparent;
   color: inherit;
@@ -849,6 +853,7 @@ textarea {
   gap: 12px;
   align-items: center;
   margin-bottom: 0;
+  min-height: 56px;
 }
 
 .watch-identity {
