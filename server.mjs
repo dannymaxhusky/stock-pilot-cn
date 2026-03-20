@@ -368,6 +368,9 @@ async function analyzeWithOpenAI(stock, localAnalysis) {
 
 async function analyzeWithAnthropic(stock, localAnalysis) {
   const endpoint = new URL("/v1/messages", ensureTrailingSlash(ANTHROPIC_BASE_URL)).toString();
+  console.log(
+    `[Anthropic request] endpoint=${endpoint} model=${ANTHROPIC_MODEL} code=${stock.stockCode || stock.code || ""}`
+  );
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -402,6 +405,9 @@ async function analyzeWithAnthropic(stock, localAnalysis) {
   try {
     parsed = JSON.parse(text);
   } catch {
+    console.error(
+      `[Anthropic parse error] endpoint=${endpoint} model=${ANTHROPIC_MODEL} text=${String(text).slice(0, 600)}`
+    );
     throw new Error("Anthropic 返回内容不是有效 JSON");
   }
 

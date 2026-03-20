@@ -337,6 +337,9 @@ async function analyzeWithOpenAI(stock, localAnalysis) {
 
 async function analyzeWithAnthropic(stock, localAnalysis) {
   const endpoint = new URL("/v1/messages", ensureTrailingSlash(ANTHROPIC_BASE_URL)).toString();
+  console.log(
+    `[Anthropic request] endpoint=${endpoint} model=${ANTHROPIC_MODEL} code=${stock.stockCode || stock.code || ""}`
+  );
   const response = await fetch(endpoint, {
     method: "POST",
     headers: {
@@ -358,9 +361,25 @@ async function analyzeWithAnthropic(stock, localAnalysis) {
     })
   });
 
-  if (!response.ok) throw new Error(`Anthropic 调用失败：HTTP ${response.status}`);
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(
+      `[Anthropic error] status=${response.status} endpoint=${endpoint} model=${ANTHROPIC_MODEL} body=${errorText.slice(0, 600)}`
+    );
+    throw new Error(`Anthropic 调用失败：HTTP ${response.status} ${errorText.slice(0, 200)}`);
+  }
   const payload = await response.json();
-  const parsed = JSON.parse(extractAnthropicText(payload));
+  const rawText = extractAnthropicText(payload);
+  let parsed;
+
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    console.error(
+      `[Anthropic parse error] endpoint=${endpoint} model=${ANTHROPIC_MODEL} text=${String(rawText).slice(0, 600)}`
+    );
+    throw new Error("Anthropic 返回内容不是有效 JSON");
+  }
   return mergeAiResult(localAnalysis, parsed, "anthropic", ANTHROPIC_MODEL);
 }
 

@@ -357,16 +357,17 @@ async function buildModelPredictions(stock) {
           riskLevel: result.ai.riskLevel,
           rationale: result.ai.rationale
         };
-      } catch {
+      } catch (error) {
+        console.error(`[AI fallback] provider=${provider} code=${stock.code} message=${error.message}`);
         const local = buildLocalAnalysis(stock, "local");
         return {
-          provider,
-          model: provider === "local" ? "rule-engine" : provider,
+          provider: "local",
+          model: `fallback-from-${provider}`,
           direction: local.ai.direction,
           confidence: local.ai.confidence,
           targetPrice: local.ai.targetPrice,
           riskLevel: local.ai.riskLevel,
-          rationale: local.ai.rationale
+          rationale: `${local.ai.rationale}（${renderProviderName(provider)} 调用失败，已回退到基础分析）`
         };
       }
     })
