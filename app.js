@@ -373,6 +373,16 @@ async function buildModelPredictions(stock) {
     })
   );
 
+  const externalProviders = new Set(
+    results
+      .map((item) => item.provider)
+      .filter((provider) => provider === "openai" || provider === "anthropic")
+  );
+
+  if (externalProviders.has("openai") && externalProviders.has("anthropic")) {
+    return results.filter((item) => item.provider !== "local");
+  }
+
   return results;
 }
 
