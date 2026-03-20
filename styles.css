@@ -357,6 +357,18 @@ h2 {
   gap: 16px;
 }
 
+.scan-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.scan-form .form-actions {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
 .panel {
   padding: 18px 16px;
 }
@@ -744,7 +756,7 @@ textarea {
   grid-template-columns: 38px 1fr;
   gap: 8px;
   align-items: center;
-  padding: 10px 11px;
+  padding: 8px 10px;
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, rgba(19, 32, 49, 0.96), rgba(12, 23, 36, 0.96));
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -773,18 +785,19 @@ textarea {
 }
 
 .rank-main .item-title {
-  font-size: 1.02rem;
+  font-size: 0.95rem;
+  line-height: 1.1;
 }
 
 .rank-main-compact {
   display: grid;
-  gap: 6px;
+  gap: 3px;
 }
 
 .rank-topline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -792,14 +805,21 @@ textarea {
   min-width: 0;
 }
 
+.rank-title-wrap .item-subtitle {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.74rem;
+}
+
 .rank-side {
   display: grid;
   justify-items: end;
-  gap: 4px;
+  gap: 2px;
 }
 
 .rank-price {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   color: var(--muted);
 }
 
@@ -807,19 +827,37 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
 }
 
 .rank-inline-note {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   color: var(--muted);
 }
 
-.rank-action-btn {
-  min-height: 30px;
-  padding: 0 10px;
-  font-size: 0.78rem;
-  white-space: nowrap;
+.rank-bottomline-compact {
+  min-height: 22px;
+}
+
+.rank-icon-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 186, 255, 0.4);
+  background: linear-gradient(180deg, rgba(37, 129, 255, 0.95), rgba(23, 88, 189, 0.95));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 8px 16px rgba(28, 124, 250, 0.2);
+}
+
+.rank-icon-btn.is-view {
+  background: linear-gradient(180deg, rgba(40, 56, 78, 0.96), rgba(24, 37, 53, 0.96));
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #dce8f8;
 }
 
 .watch-card,
@@ -1517,6 +1555,10 @@ textarea {
 }
 
 @media (max-width: 480px) {
+  .scan-form {
+    gap: 8px;
+  }
+
   .hero-card {
     padding: 8px 12px;
   }
@@ -1561,15 +1603,11 @@ textarea {
   }
 
   .rank-topline {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
   .rank-side {
-    justify-items: start;
-  }
-
-  .rank-bottomline {
-    flex-wrap: wrap;
+    justify-items: end;
   }
 
   .market-facts {

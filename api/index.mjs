@@ -44,6 +44,14 @@ export default {
         return json({ items });
       }
 
+      if (request.method === "GET" && pathname === "/api/universe") {
+        const minPrice = Number(url.searchParams.get("minPrice") || 0);
+        const maxPrice = Number(url.searchParams.get("maxPrice") || 9999);
+        const limit = Number(url.searchParams.get("limit") || 24);
+        const items = await fetchMarketUniverse({ minPrice, maxPrice, limit });
+        return json({ items });
+      }
+
       if (request.method === "GET" && pathname === "/api/indices") {
         const items = await fetchMarketIndices();
         return json({ items });
@@ -186,6 +194,53 @@ async function fetchMarketMovers(type) {
     changePercent: Number(item.f3),
     amount: Number(item.f6)
   }));
+}
+
+async function fetchMarketUniverse({ minPrice = 0, maxPrice = 9999, limit = 24 }) {
+  const safeMin = Number.isFinite(minPrice) ? Math.max(0, minPrice) : 0;
+  const safeMax = Number.isFinite(maxPrice) ? Math.max(safeMin, maxPrice) : 9999;
+  const safeLimit = Math.min(Math.max(Number(limit) || 24, 10), 60);
+  const url = new URL("https://push2.eastmoney.com/api/qt/clist/get");
+  url.searchParams.set("pn", "1");
+  url.searchParams.set("pz", String(Math.max(80, safeLimit * 4)));
+  url.searchParams.set("po", "1");
+  url.searchParams.set("np", "1");
+  url.searchParams.set("ut", "bd1d9ddb04089700cf9c27f6f7426281");
+  url.searchParams.set("fltt", "2");
+  url.searchParams.set("invt", "2");
+  url.searchParams.set("fid", "f6");
+  url.searchParams.set("fs", "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23");
+  url.searchParams.set("fields", "f2,f3,f12,f14,f6");
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 StockPilotCN/1.0",
+      Referer: "https://quote.eastmoney.com/"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`候选股票接口异常：HTTP ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const diff = payload?.data?.diff || [];
+  return diff
+    .map((item) => ({
+      code: item.f12,
+      name: item.f14,
+      currentPrice: Number(item.f2),
+      changePercent: Number(item.f3),
+      amount: Number(item.f6)
+    }))
+    .filter(
+      (item) =>
+        /^\d{6}$/.test(item.code) &&
+        Number.isFinite(item.currentPrice) &&
+        item.currentPrice >= safeMin &&
+        item.currentPrice <= safeMax
+    )
+    .slice(0, safeLimit);
 }
 
 async function fetchMarketIndices() {

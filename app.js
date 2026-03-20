@@ -11,6 +11,10 @@ const SAMPLE_STOCKS = [
 const els = {
   stockForm: document.querySelector("#stockForm"),
   rankingForm: document.querySelector("#rankingForm"),
+  aiScanForm: document.querySelector("#aiScanForm"),
+  aiScanBtn: document.querySelector("#aiScanBtn"),
+  scanMinPrice: document.querySelector("#scanMinPrice"),
+  scanMaxPrice: document.querySelector("#scanMaxPrice"),
   rankingCodes: document.querySelector("#rankingCodes"),
   fillRankingSampleBtn: document.querySelector("#fillRankingSampleBtn"),
   rankingSummary: document.querySelector("#rankingSummary"),
@@ -90,7 +94,6 @@ async function boot() {
   installZoomGuards();
   registerServiceWorker();
   await Promise.all([loadServerConfig(), loadMovers(), loadIndices()]);
-  syncRankingsFromWatchlist();
   await tryRestoreCloudProfile("silent");
   renderAll();
 }
@@ -98,6 +101,7 @@ async function boot() {
 function bindEvents() {
   els.watchlistSearchForm.addEventListener("submit", handleWatchlistSearch);
   if (els.rankingForm) els.rankingForm.addEventListener("submit", handleRankingSubmit);
+  if (els.aiScanForm) els.aiScanForm.addEventListener("submit", handleAiScanSubmit);
   if (els.fillRankingSampleBtn) els.fillRankingSampleBtn.addEventListener("click", fillRankingSample);
   if (els.stockForm) els.stockForm.addEventListener("submit", handleAnalyze);
   if (els.fillSampleBtn) els.fillSampleBtn.addEventListener("click", fillSample);
@@ -171,7 +175,8 @@ function defaultState() {
     rankings: {
       horizon5: [],
       horizon10: [],
-      updatedAt: null
+      updatedAt: null,
+      criteria: null
     },
     movers: {
       gainers: [],
@@ -366,7 +371,6 @@ async function addToWatchlist(code, name, onProgress = null) {
   if (index >= 0) appState.watchlist[index] = watchItem;
   else appState.watchlist.unshift(watchItem);
   appState.expandedWatchCode = code;
-  syncRankingsFromWatchlist();
   saveState();
   renderWatchlist();
   renderRankings();
@@ -394,7 +398,7 @@ async function buildModelPredictions(stock, onProgress = null) {
             recentCloses: stock.closes
           })
         });
-        return {
+        return normalizePredictionEntry({
           provider: result.provider,
           model: result.model,
           direction: result.ai.direction,
@@ -402,11 +406,11 @@ async function buildModelPredictions(stock, onProgress = null) {
           targetPrice: result.ai.targetPrice,
           riskLevel: result.ai.riskLevel,
           rationale: result.ai.rationale
-        };
+        }, stock.currentPrice);
       } catch (error) {
         console.error(`[AI fallback] provider=${provider} code=${stock.code} message=${error.message}`);
         const local = buildLocalAnalysis(stock, "local");
-        return {
+        return normalizePredictionEntry({
           provider: "local",
           model: `fallback-from-${provider}`,
           direction: local.ai.direction,
@@ -414,7 +418,7 @@ async function buildModelPredictions(stock, onProgress = null) {
           targetPrice: local.ai.targetPrice,
           riskLevel: local.ai.riskLevel,
           rationale: `${local.ai.rationale}（${renderProviderName(provider)} 调用失败，已回退到基础分析）`
-        };
+        }, stock.currentPrice);
       } finally {
         completed += 1;
         const progress = Math.min(95, 58 + Math.round((completed / uniqueProviders.length) * 34));
@@ -449,7 +453,6 @@ function handleWatchlistAction(event) {
   if (actionTarget.dataset.action === "remove-watch") {
     appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
     if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
-    syncRankingsFromWatchlist();
     renderRankings();
     scheduleCloudSync();
   }
@@ -610,31 +613,72 @@ async function handleAnalyze(event) {
 
 async function handleRankingSubmit(event) {
   event.preventDefault();
-  const codes = parseRankingCodes(els.rankingCodes.value);
-  if (!codes.length) {
-    els.rankingSummary.textContent = "请先输入股票代码，再生成排序。";
+}
+
+async function handleAiScanSubmit(event) {
+  event.preventDefault();
+  const minPrice = Number(els.scanMinPrice?.value || 0);
+  const maxPrice = Number(els.scanMaxPrice?.value || 0);
+
+  if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice) || minPrice < 0 || maxPrice <= 0 || minPrice > maxPrice) {
+    els.rankingSummary.textContent = "请先填写正确的单价范围，例如最低 3 元、最高 30 元。";
     return;
   }
 
-  const button = event.submitter || els.rankingForm.querySelector(".primary-btn");
+  const button = event.submitter || els.aiScanBtn;
 
   try {
-    setBusyState(button, true, "生成中...");
-    els.rankingSummary.textContent = `正在分析 ${codes.length} 只股票，请稍候...`;
-    const candidates = await Promise.all(codes.map((code) => buildRankingCandidate(code)));
+    setBusyState(button, true, "筛选股票中...", 10);
+    els.rankingSummary.textContent = `正在筛选 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间的候选股票...`;
+    const pool = await apiRequest(
+      `/universe?minPrice=${encodeURIComponent(minPrice)}&maxPrice=${encodeURIComponent(maxPrice)}&limit=24`
+    );
+    const items = pool.items || [];
+
+    if (!items.length) {
+      appState.rankings = {
+        horizon5: [],
+        horizon10: [],
+        updatedAt: null,
+        criteria: { minPrice, maxPrice, sampleSize: 0 }
+      };
+      saveState();
+      renderRankings();
+      els.rankingSummary.textContent = "这个价格范围内暂时没有找到合适的候选股票。";
+      return;
+    }
+
+    const candidates = [];
+    for (let index = 0; index < items.length; index += 1) {
+      const stock = items[index];
+      const progress = 18 + Math.round(((index + 1) / items.length) * 72);
+      setBusyState(button, true, `分析中 ${index + 1}/${items.length}`, progress);
+      els.rankingSummary.textContent = `正在分析 ${stock.name}（${stock.code}），进度 ${index + 1}/${items.length}...`;
+      const candidate = await buildRankingCandidate(stock.code);
+      if (candidate) candidates.push(candidate);
+    }
+
     const valid = candidates.filter(Boolean);
     appState.rankings = {
       horizon5: sortRanking(valid, "predicted5d"),
       horizon10: sortRanking(valid, "predicted10d"),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      criteria: {
+        minPrice,
+        maxPrice,
+        sampleSize: items.length
+      }
     };
     saveState();
     renderRankings();
-    els.rankingSummary.textContent = `已完成 ${valid.length} 只股票的排序。`;
+    setBusyState(button, true, "查询完成", 100);
+    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内分析 ${valid.length} 只股票，并生成未来 5 天 / 10 天前十。`;
   } catch (error) {
     els.rankingSummary.textContent = `生成排序失败：${error.message}`;
   } finally {
-    setBusyState(button, false, "生成涨幅排序");
+    setTimeout(() => {
+      setBusyState(button, false, "查询 AI 前十");
+    }, 320);
   }
 }
 
@@ -818,7 +862,7 @@ async function requestAiAnalysis(stock) {
     })
   });
 
-  return {
+  return normalizeAnalysisPayload({
     ...buildLocalAnalysis(
       stock,
       payload.provider || serverConfig.defaultAiProvider || (serverConfig.hasOpenAIKey ? "openai" : "local")
@@ -848,7 +892,7 @@ async function requestAiAnalysis(stock) {
       targetPrice: roundMoney(payload.ai.targetPrice),
       stopPrice: roundMoney(payload.ai.stopPrice)
     }
-  };
+  }, stock.currentPrice);
 }
 
 async function buildRemoteAnalysisFromCustomEndpoint(stock) {
@@ -866,7 +910,7 @@ async function buildRemoteAnalysisFromCustomEndpoint(stock) {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const payload = await response.json();
   const base = buildLocalAnalysis(stock, "custom-ai");
-  return {
+  return normalizeAnalysisPayload({
     ...base,
     provider: "custom-ai",
     model: payload.model || "custom-endpoint",
@@ -882,7 +926,7 @@ async function buildRemoteAnalysisFromCustomEndpoint(stock) {
       targetPrice: Number.isFinite(payload.targetPrice) ? roundMoney(payload.targetPrice) : base.ai.targetPrice,
       stopPrice: Number.isFinite(payload.stopPrice) ? roundMoney(payload.stopPrice) : base.ai.stopPrice
     }
-  };
+  }, stock.currentPrice);
 }
 
 async function fetchQuote(code) {
@@ -1280,7 +1324,6 @@ function mergeCloudSnapshot(snapshot) {
       ...(snapshot.profile || {})
     }
   };
-  syncRankingsFromWatchlist();
   saveState();
 }
 
@@ -1460,14 +1503,15 @@ function renderWatchlist() {
   els.watchlistList.innerHTML = appState.watchlist
     .map((item) => {
       const expanded = appState.expandedWatchCode === item.code;
-      const topPrediction = item.predictions?.[0];
+      const normalizedPredictions = getNormalizedPredictions(item);
+      const displayItem = { ...item, predictions: normalizedPredictions };
+      const topPrediction = normalizedPredictions[0];
       const recent5 = calculateRecentChange(item.closes || []);
       const changePercent = Number(item.changePercent) || 0;
       const currentPrice = Number(item.currentPrice) || 0;
       const previousClose = changePercent === -100 ? currentPrice : currentPrice / (1 + changePercent / 100);
       const todayMove = roundMoney(currentPrice - previousClose);
-      const summary = buildPredictionSummary(item);
-      const quickRows = buildWatchQuickRows(item);
+      const summary = buildPredictionSummary(displayItem);
       return `
         <article class="watch-card">
           <div class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}">
@@ -1507,9 +1551,8 @@ function renderWatchlist() {
                 <div class="watch-meta-row">
                   <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
                   ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
-                  ${item.predictions?.length ? `<span class="tag">模型 ${item.predictions.length} 家</span>` : ""}
+                  ${normalizedPredictions.length ? `<span class="tag">模型 ${normalizedPredictions.length} 家</span>` : ""}
                 </div>
-                <div class="watch-model-scan">${quickRows}</div>
                 <div class="action-row">
                   <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">收起</button>
                   <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
@@ -1517,10 +1560,10 @@ function renderWatchlist() {
                   <button class="text-btn" data-action="remove-watch" data-code="${item.code}">删除</button>
                 </div>
                 <div class="watch-expanded">
-                  ${buildMarketPredictionChart(item)}
-                  ${buildWatchComparison(item)}
+                  ${buildMarketPredictionChart(displayItem)}
+                  ${buildWatchComparison(displayItem)}
                   <div class="model-grid">
-                    ${(item.predictions || [])
+                    ${normalizedPredictions
                       .map(
                         (prediction) => `
                           <article class="model-card">
@@ -1691,12 +1734,23 @@ function renderSettings() {
 }
 
 function renderRankings() {
-  renderRankingList(els.ranking5List, appState.rankings?.horizon5 || [], "predicted5d", "近 5 天");
-  renderRankingList(els.ranking10List, appState.rankings?.horizon10 || [], "predicted10d", "近 10 天");
   renderRankingList(els.futureTop5, appState.rankings?.horizon5 || [], "predicted5d", "未来 5 天");
   renderRankingList(els.futureTop10, appState.rankings?.horizon10 || [], "predicted10d", "未来 10 天");
+  if (els.scanMinPrice && appState.rankings?.criteria?.minPrice != null) {
+    els.scanMinPrice.value = appState.rankings.criteria.minPrice;
+  }
+  if (els.scanMaxPrice && appState.rankings?.criteria?.maxPrice != null) {
+    els.scanMaxPrice.value = appState.rankings.criteria.maxPrice;
+  }
   if (els.rankingSummary && appState.rankings?.updatedAt) {
-    els.rankingSummary.textContent = `最近一次排序时间：${formatDateTime(appState.rankings.updatedAt)}`;
+    const criteria = appState.rankings.criteria;
+    const rangeText =
+      criteria && Number.isFinite(criteria.minPrice) && Number.isFinite(criteria.maxPrice)
+        ? `${formatMoney(criteria.minPrice)} 到 ${formatMoney(criteria.maxPrice)}`
+        : "当前价格范围";
+    els.rankingSummary.textContent = `最近一次 AI 扫描时间：${formatDateTime(
+      appState.rankings.updatedAt
+    )}，扫描范围 ${rangeText}，候选股票 ${criteria?.sampleSize || 0} 只。`;
   }
 }
 
@@ -1724,21 +1778,24 @@ function renderMarketMoverList(container, list, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code}</div>
+                <div class="item-subtitle">${item.code} · 现价 ${formatMoney(item.currentPrice)} · 成交额 ${formatLargeNumber(
+                  item.amount
+                )}</div>
               </div>
               <div class="rank-side">
                 <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
-                <span class="rank-price">现价 ${formatMoney(item.currentPrice)}</span>
               </div>
             </div>
-            <div class="rank-bottomline">
-              <span class="rank-inline-note">成交额 ${formatLargeNumber(item.amount)}</span>
+            <div class="rank-bottomline rank-bottomline-compact">
+              <span class="rank-inline-note"></span>
               <button
-                class="${inWatchlist ? "ghost-btn" : "primary-btn"} rank-action-btn"
+                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
                 data-rank-action="${inWatchlist ? "view" : "add"}"
                 data-open-code="${item.code}"
                 data-open-name="${item.name}"
-              >${inWatchlist ? "查看自选" : "加入自选"}</button>
+                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                title="${inWatchlist ? "查看自选" : "加入自选"}"
+              >${inWatchlist ? "›" : "+"}</button>
             </div>
           </div>
         </article>
@@ -1768,21 +1825,23 @@ function renderRankingList(container, list, key, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code} · ${item.direction} · 置信 ${item.confidence}%</div>
+                <div class="item-subtitle">${item.code} · ${item.direction} · 现价 ${formatMoney(item.currentPrice)}</div>
               </div>
               <div class="rank-side">
                 <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
-                <span class="rank-price">现价 ${formatMoney(item.currentPrice)}</span>
+                <span class="rank-price ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
               </div>
             </div>
-            <div class="rank-bottomline">
-              <span class="rank-inline-note ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
+            <div class="rank-bottomline rank-bottomline-compact">
+              <span class="rank-inline-note">置信 ${item.confidence}%</span>
               <button
-                class="${inWatchlist ? "ghost-btn" : "primary-btn"} rank-action-btn"
+                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
                 data-rank-action="${inWatchlist ? "view" : "add"}"
                 data-open-code="${item.code}"
                 data-open-name="${item.name}"
-              >${inWatchlist ? "查看自选" : "加入自选"}</button>
+                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                title="${inWatchlist ? "查看自选" : "加入自选"}"
+              >${inWatchlist ? "›" : "+"}</button>
             </div>
           </div>
         </article>
@@ -1793,35 +1852,7 @@ function renderRankingList(container, list, key, label) {
 }
 
 function syncRankingsFromWatchlist() {
-  const items = (appState.watchlist || [])
-    .map((item) => {
-      const currentPrice = Number(item.currentPrice);
-      if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
-
-      const forecast = buildForecastPoints(currentPrice, item.predictions || []);
-      const projected5 = forecast.find((entry) => entry.label === "5天")?.price ?? currentPrice;
-      const projected10 = forecast.find((entry) => entry.label === "10天")?.price ?? currentPrice;
-      const topPrediction = item.predictions?.[0];
-
-      return {
-        code: item.code,
-        name: item.name,
-        currentPrice,
-        provider: topPrediction?.provider || "local",
-        direction: topPrediction?.direction || "震荡",
-        confidence: topPrediction?.confidence || 50,
-        riskLevel: topPrediction?.riskLevel || "中",
-        predicted5d: round2(((projected5 - currentPrice) / currentPrice) * 100),
-        predicted10d: round2(((projected10 - currentPrice) / currentPrice) * 100)
-      };
-    })
-    .filter(Boolean);
-
-  appState.rankings = {
-    horizon5: sortRanking(items, "predicted5d"),
-    horizon10: sortRanking(items, "predicted10d"),
-    updatedAt: items.length ? new Date().toISOString() : null
-  };
+  return;
 }
 
 function renderUserPanel() {
@@ -2729,6 +2760,54 @@ async function installPwa() {
   await deferredPrompt.userChoice;
   deferredPrompt = null;
   els.installBtn.hidden = true;
+}
+
+function normalizeDirectionLabel(direction, targetPrice = null, currentPrice = null) {
+  const raw = String(direction || "").trim().toLowerCase();
+  let normalized = "震荡";
+
+  if (["看涨", "偏多", "up", "bullish", "buy", "long", "rise"].includes(raw)) normalized = "看涨";
+  else if (["看跌", "偏空", "down", "bearish", "sell", "short", "fall"].includes(raw)) normalized = "看跌";
+  else if (["震荡", "中性", "neutral", "flat", "sideways", "hold"].includes(raw)) normalized = "震荡";
+
+  if (Number.isFinite(targetPrice) && Number.isFinite(currentPrice) && currentPrice > 0) {
+    const gap = round2(((targetPrice - currentPrice) / currentPrice) * 100);
+    if (Math.abs(gap) >= 1.2) {
+      if (gap > 0) normalized = "看涨";
+      if (gap < 0) normalized = "看跌";
+    }
+  }
+
+  return normalized;
+}
+
+function normalizePredictionEntry(prediction, currentPrice) {
+  const targetPrice = Number(prediction.targetPrice);
+  const safeTargetPrice = Number.isFinite(targetPrice) ? roundMoney(targetPrice) : roundMoney(currentPrice || 0);
+  return {
+    ...prediction,
+    direction: normalizeDirectionLabel(prediction.direction, safeTargetPrice, Number(currentPrice) || 0),
+    targetPrice: safeTargetPrice
+  };
+}
+
+function normalizeAnalysisPayload(analysis, currentPrice) {
+  const normalizedDirection = normalizeDirectionLabel(
+    analysis?.ai?.direction,
+    Number(analysis?.ai?.targetPrice),
+    Number(currentPrice) || Number(analysis?.currentPrice) || 0
+  );
+  return {
+    ...analysis,
+    ai: {
+      ...analysis.ai,
+      direction: normalizedDirection
+    }
+  };
+}
+
+function getNormalizedPredictions(item) {
+  return (item?.predictions || []).map((prediction) => normalizePredictionEntry(prediction, item.currentPrice));
 }
 
 function mapTrendClass(direction) {
