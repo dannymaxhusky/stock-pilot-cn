@@ -30,6 +30,8 @@ const els = {
   marketTopLosers: document.querySelector("#marketTopLosers"),
   futureTop5: document.querySelector("#futureTop5"),
   futureTop10: document.querySelector("#futureTop10"),
+  openaiTop10: document.querySelector("#openaiTop10"),
+  anthropicTop10: document.querySelector("#anthropicTop10"),
   stockCode: document.querySelector("#stockCode"),
   stockName: document.querySelector("#stockName"),
   currentPrice: document.querySelector("#currentPrice"),
@@ -121,6 +123,8 @@ function bindEvents() {
   if (els.ranking10List) els.ranking10List.addEventListener("click", handleOpenFromRanking);
   if (els.futureTop5) els.futureTop5.addEventListener("click", handleOpenFromRanking);
   if (els.futureTop10) els.futureTop10.addEventListener("click", handleOpenFromRanking);
+  if (els.openaiTop10) els.openaiTop10.addEventListener("click", handleOpenFromRanking);
+  if (els.anthropicTop10) els.anthropicTop10.addEventListener("click", handleOpenFromRanking);
   if (els.marketTopGainers) els.marketTopGainers.addEventListener("click", handleOpenFromRanking);
   if (els.marketTopLosers) els.marketTopLosers.addEventListener("click", handleOpenFromRanking);
   window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
@@ -173,8 +177,14 @@ function defaultState() {
   return {
     cash: INITIAL_CASH,
     rankings: {
-      horizon5: [],
-      horizon10: [],
+      openai: {
+        horizon5: [],
+        horizon10: []
+      },
+      anthropic: {
+        horizon5: [],
+        horizon10: []
+      },
       updatedAt: null,
       criteria: null
     },
@@ -637,8 +647,8 @@ async function handleAiScanSubmit(event) {
 
     if (!items.length) {
       appState.rankings = {
-        horizon5: [],
-        horizon10: [],
+        openai: { horizon5: [], horizon10: [] },
+        anthropic: { horizon5: [], horizon10: [] },
         updatedAt: null,
         criteria: { minPrice, maxPrice, sampleSize: 0 }
       };
@@ -648,20 +658,32 @@ async function handleAiScanSubmit(event) {
       return;
     }
 
-    const candidates = [];
+    const openaiCandidates = [];
+    const anthropicCandidates = [];
     for (let index = 0; index < items.length; index += 1) {
       const stock = items[index];
       const progress = 18 + Math.round(((index + 1) / items.length) * 72);
       setBusyState(button, true, `分析中 ${index + 1}/${items.length}`, progress);
       els.rankingSummary.textContent = `正在分析 ${stock.name}（${stock.code}），进度 ${index + 1}/${items.length}...`;
-      const candidate = await buildRankingCandidate(stock.code);
-      if (candidate) candidates.push(candidate);
+      const [openaiCandidate, anthropicCandidate] = await Promise.all([
+        buildRankingCandidate(stock.code, "openai"),
+        buildRankingCandidate(stock.code, "anthropic")
+      ]);
+      if (openaiCandidate) openaiCandidates.push(openaiCandidate);
+      if (anthropicCandidate) anthropicCandidates.push(anthropicCandidate);
     }
 
-    const valid = candidates.filter(Boolean);
+    const openaiValid = openaiCandidates.filter(Boolean);
+    const anthropicValid = anthropicCandidates.filter(Boolean);
     appState.rankings = {
-      horizon5: sortRanking(valid, "predicted5d"),
-      horizon10: sortRanking(valid, "predicted10d"),
+      openai: {
+        horizon5: sortRanking(openaiValid, "predicted5d"),
+        horizon10: sortRanking(openaiValid, "predicted10d")
+      },
+      anthropic: {
+        horizon5: sortRanking(anthropicValid, "predicted5d"),
+        horizon10: sortRanking(anthropicValid, "predicted10d")
+      },
       updatedAt: new Date().toISOString(),
       criteria: {
         minPrice,
@@ -672,7 +694,7 @@ async function handleAiScanSubmit(event) {
     saveState();
     renderRankings();
     setBusyState(button, true, "查询完成", 100);
-    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内分析 ${valid.length} 只股票，并生成未来 5 天 / 10 天前十。`;
+    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内完成扫描。OpenAI 分析 ${openaiValid.length} 只，Anthropic 分析 ${anthropicValid.length} 只。`;
   } catch (error) {
     els.rankingSummary.textContent = `生成排序失败：${error.message}`;
   } finally {
@@ -689,7 +711,7 @@ function parseRankingCodes(value) {
     .filter((item) => /^\d{6}$/.test(item)))].slice(0, 20);
 }
 
-async function buildRankingCandidate(code) {
+async function buildRankingCandidate(code, provider = "openai") {
   let quote;
   try {
     quote = await fetchQuote(code);
@@ -716,16 +738,16 @@ async function buildRankingCandidate(code) {
 
   let analysis;
   try {
-    analysis = await requestAiAnalysis(stock);
+    analysis = await requestAiAnalysis(stock, provider);
   } catch {
-    analysis = buildLocalAnalysis(stock, "local-ranking");
+    return null;
   }
 
   return {
     code: stock.code,
     name: stock.name,
     currentPrice: stock.currentPrice,
-    provider: analysis.provider,
+    provider,
     direction: analysis.ai.direction,
     confidence: analysis.ai.confidence,
     riskLevel: analysis.ai.riskLevel,
@@ -843,7 +865,7 @@ function buildLocalAnalysis(stock, provider = "local") {
   };
 }
 
-async function requestAiAnalysis(stock) {
+async function requestAiAnalysis(stock, providerOverride = null) {
   if (appState.settings.aiProvider === "custom") {
     if (!appState.settings.aiApiUrl) {
       throw new Error("当前已选择自定义接口，但还没有填写 AI 接口地址");
@@ -851,10 +873,11 @@ async function requestAiAnalysis(stock) {
     return buildRemoteAnalysisFromCustomEndpoint(stock);
   }
 
+  const selectedProvider = providerOverride || appState.settings.aiProvider || "auto";
   const payload = await apiRequest("/ai/analyze", {
     method: "POST",
     body: JSON.stringify({
-      provider: appState.settings.aiProvider || "auto",
+      provider: selectedProvider,
       stockCode: stock.code,
       stockName: stock.name,
       currentPrice: stock.currentPrice,
@@ -1463,6 +1486,7 @@ function renderAll() {
 function renderMarketStrip() {
   if (!els.marketStrip) return;
   const list = appState.indices || [];
+  const marketSession = getCnMarketSession();
 
   if (!list.length) {
     els.marketStrip.innerHTML = `
@@ -1476,20 +1500,55 @@ function renderMarketStrip() {
   els.marketStrip.innerHTML = list
     .map(
       (item) => `
-        <article class="market-ticker ${item.changePercent >= 0 ? "is-up" : "is-down"}">
+        <article class="market-ticker ${item.changePercent >= 0 ? "is-up" : "is-down"} ${marketSession.className}">
           <div class="ticker-head">
             <strong>${item.name}</strong>
             <span class="ticker-code">${item.code}</span>
           </div>
           <div class="ticker-price">${formatMoney(item.currentPrice)}</div>
           <div class="ticker-foot">
-            <span class="ticker-status">${item.changePercent >= 0 ? "市场偏强" : "市场偏弱"}</span>
+            <span class="ticker-status">${marketSession.label}</span>
             <div class="ticker-change ${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</div>
           </div>
         </article>
       `
     )
     .join("");
+}
+
+function getCnMarketSession(now = new Date()) {
+  const day = now.getDay();
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const isWeekday = day >= 1 && day <= 5;
+
+  if (!isWeekday) {
+    return {
+      label: "歇市中",
+      className: "is-closed"
+    };
+  }
+
+  const isMorningOpen = minutes >= 9 * 60 + 30 && minutes < 11 * 60 + 30;
+  const isAfternoonOpen = minutes >= 13 * 60 && minutes < 15 * 60;
+  if (isMorningOpen || isAfternoonOpen) {
+    return {
+      label: "开市中",
+      className: "is-live"
+    };
+  }
+
+  const isLunchBreak = minutes >= 11 * 60 + 30 && minutes < 13 * 60;
+  if (isLunchBreak) {
+    return {
+      label: "午休中",
+      className: "is-break"
+    };
+  }
+
+  return {
+    label: "歇市中",
+    className: "is-closed"
+  };
 }
 
 function renderWatchlist() {
@@ -1734,8 +1793,10 @@ function renderSettings() {
 }
 
 function renderRankings() {
-  renderRankingList(els.futureTop5, appState.rankings?.horizon5 || [], "predicted5d", "未来 5 天");
-  renderRankingList(els.futureTop10, appState.rankings?.horizon10 || [], "predicted10d", "未来 10 天");
+  renderRankingList(els.futureTop5, appState.rankings?.openai?.horizon5 || [], "predicted5d", "OpenAI 未来 5 天");
+  renderRankingList(els.futureTop10, appState.rankings?.anthropic?.horizon5 || [], "predicted5d", "Anthropic 未来 5 天");
+  renderRankingList(els.openaiTop10, appState.rankings?.openai?.horizon10 || [], "predicted10d", "OpenAI 未来 10 天");
+  renderRankingList(els.anthropicTop10, appState.rankings?.anthropic?.horizon10 || [], "predicted10d", "Anthropic 未来 10 天");
   if (els.scanMinPrice && appState.rankings?.criteria?.minPrice != null) {
     els.scanMinPrice.value = appState.rankings.criteria.minPrice;
   }
@@ -2811,8 +2872,8 @@ function getNormalizedPredictions(item) {
 }
 
 function mapTrendClass(direction) {
-  if (direction === "看涨" || direction === "偏多") return "good";
-  if (direction === "看跌" || direction === "偏空") return "bad";
+  if (direction === "看涨" || direction === "偏多") return "rise";
+  if (direction === "看跌" || direction === "偏空") return "fall";
   return "warn";
 }
 

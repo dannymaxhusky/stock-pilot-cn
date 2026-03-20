@@ -13,6 +13,8 @@
   --primary-soft: rgba(28, 124, 250, 0.16);
   --accent: #1ed39a;
   --accent-soft: rgba(30, 211, 154, 0.16);
+  --rise: #ff5b6e;
+  --fall: #24c48e;
   --good: #23d395;
   --bad: #ff6b6b;
   --warn: #ffb347;
@@ -301,6 +303,20 @@ h2 {
   border-color: rgba(255, 107, 107, 0.18);
 }
 
+.market-ticker.is-live {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 0 1px rgba(255, 176, 90, 0.05);
+  background: linear-gradient(180deg, rgba(30, 39, 56, 0.98), rgba(15, 24, 37, 0.98));
+  animation: marketPulse 2.8s ease-in-out infinite;
+}
+
+.market-ticker.is-break {
+  background: linear-gradient(180deg, rgba(17, 31, 46, 0.96), rgba(11, 22, 34, 0.96));
+}
+
+.market-ticker.is-closed {
+  opacity: 0.9;
+}
+
 .market-loading {
   grid-column: 1 / -1;
   color: var(--muted);
@@ -345,6 +361,35 @@ h2 {
 .ticker-status {
   color: var(--muted);
   font-size: 0.64rem;
+}
+
+.market-ticker.is-live .ticker-status {
+  color: #ffbf74;
+}
+
+.market-ticker.is-break .ticker-status {
+  color: #8cc8ff;
+}
+
+.market-ticker.is-closed .ticker-status {
+  color: #8ea1b8;
+}
+
+@keyframes marketPulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 0 0 1px rgba(255, 176, 90, 0.05),
+      0 0 0 rgba(255, 184, 105, 0);
+  }
+
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.03),
+      0 0 0 1px rgba(255, 176, 90, 0.1),
+      0 0 20px rgba(255, 184, 105, 0.12);
+  }
 }
 
 .ticker-change {
@@ -413,6 +458,10 @@ h2 {
   margin-bottom: 16px;
 }
 
+.ai-scan-panel {
+  grid-column: 1 / -1;
+}
+
 .ranking-panel {
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, rgba(18, 31, 48, 0.92), rgba(13, 24, 37, 0.92));
@@ -473,6 +522,16 @@ h2 {
 .pill.good {
   background: rgba(15, 122, 69, 0.12);
   color: var(--good);
+}
+
+.pill.rise {
+  background: rgba(181, 71, 57, 0.12);
+  color: var(--rise);
+}
+
+.pill.fall {
+  background: rgba(15, 122, 69, 0.12);
+  color: var(--fall);
 }
 
 .pill.bad {
@@ -1224,6 +1283,16 @@ textarea {
   color: var(--good);
 }
 
+.tag.rise {
+  background: rgba(181, 71, 57, 0.1);
+  color: var(--rise);
+}
+
+.tag.fall {
+  background: rgba(15, 122, 69, 0.1);
+  color: var(--fall);
+}
+
 .tag.bad {
   background: rgba(181, 71, 57, 0.1);
   color: var(--bad);
@@ -1312,13 +1381,13 @@ textarea {
 }
 
 .candle-up {
-  fill: #0f7a45;
-  stroke: #0f7a45;
+  fill: var(--rise);
+  stroke: var(--rise);
 }
 
 .candle-down {
-  fill: #b54739;
-  stroke: #b54739;
+  fill: var(--fall);
+  stroke: var(--fall);
 }
 
 .actual-close-line {
@@ -1396,11 +1465,11 @@ textarea {
 }
 
 .trend-up {
-  color: var(--good);
+  color: var(--rise);
 }
 
 .trend-down {
-  color: var(--bad);
+  color: var(--fall);
 }
 
 .trend-sideways {
@@ -1457,6 +1526,14 @@ textarea {
 
 .timeline-dot.good {
   background: var(--good);
+}
+
+.timeline-dot.rise {
+  background: var(--rise);
+}
+
+.timeline-dot.fall {
+  background: var(--fall);
 }
 
 .timeline-dot.bad {
