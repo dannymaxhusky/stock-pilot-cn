@@ -33,6 +33,7 @@ OPENAI_BASE_URL=https://api.openai.com
 OPENAI_MODEL=gpt-5-mini
 ANTHROPIC_BASE_URL=https://your-anthropic-proxy.example.com
 ANTHROPIC_AUTH_TOKEN=你的_anthropic_token
+ANTHROPIC_API_KEY=你的_anthropic_token
 ANTHROPIC_MODEL=claude-3-5-sonnet-latest
 SESSION_SECRET=替换成随机字符串
 ```
@@ -60,8 +61,13 @@ OPENAI_BASE_URL=https://api.openai.com
 OPENAI_MODEL=gpt-5-mini
 ANTHROPIC_BASE_URL=https://sz.uyilink.com
 ANTHROPIC_AUTH_TOKEN=你的_token
+ANTHROPIC_API_KEY=你的_token
 ANTHROPIC_MODEL=claude-3-5-sonnet-latest
 ```
+
+说明：
+- Anthropic 现在兼容两种变量名：`ANTHROPIC_AUTH_TOKEN` 和 `ANTHROPIC_API_KEY`
+- 两者填任意一个都可以，若同时存在，程序会优先读取 `ANTHROPIC_AUTH_TOKEN`
 
 项目里已经包含：
 

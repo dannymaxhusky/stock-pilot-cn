@@ -2,7 +2,8 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || "";
-const ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN || "";
+const ANTHROPIC_AUTH_TOKEN =
+  process.env.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_API_KEY || "";
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest";
 
 export default {

@@ -16,7 +16,11 @@ const OPENAI_MODEL = ENV.OPENAI_MODEL || "gpt-5-mini";
 const ANTHROPIC_BASE_URL =
   ENV.ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || "";
 const ANTHROPIC_AUTH_TOKEN =
-  ENV.ANTHROPIC_AUTH_TOKEN || process.env.ANTHROPIC_AUTH_TOKEN || "";
+  ENV.ANTHROPIC_AUTH_TOKEN ||
+  ENV.ANTHROPIC_API_KEY ||
+  process.env.ANTHROPIC_AUTH_TOKEN ||
+  process.env.ANTHROPIC_API_KEY ||
+  "";
 const ANTHROPIC_MODEL =
   ENV.ANTHROPIC_MODEL || process.env.ANTHROPIC_MODEL || "claude-3-5-sonnet-latest";
 const SESSION_SECRET = ENV.SESSION_SECRET || "stock-pilot-local-secret";
