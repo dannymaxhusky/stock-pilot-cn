@@ -830,6 +830,7 @@ textarea {
   text-align: left;
   border: 0;
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .watch-summary-trigger:active {
@@ -888,6 +889,9 @@ textarea {
   font-style: normal;
   font-size: 0.74rem;
   color: #b8c9de;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
 }
 
 .watch-market-board {

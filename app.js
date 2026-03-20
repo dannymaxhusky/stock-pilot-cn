@@ -1264,15 +1264,15 @@ function renderWatchlist() {
         <article class="watch-card">
           <div class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}">
           <div class="watch-quote-row">
-            <div class="watch-identity">
+            <div class="watch-identity" data-action="toggle-watch" data-code="${item.code}">
               <div class="item-title">${item.name}</div>
               <div class="item-subtitle">${item.code} · ${summary.caption}</div>
             </div>
-            <div class="watch-price-block">
+            <div class="watch-price-block" data-action="toggle-watch" data-code="${item.code}">
               <strong>${formatMoney(item.currentPrice)}</strong>
               <span class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</span>
               <small class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSignedMoney(todayMove)}</small>
-              <em class="watch-toggle-hint">${expanded ? "收起详情" : "展开详情"}</em>
+              <em class="watch-toggle-hint" data-action="toggle-watch" data-code="${item.code}">${expanded ? "收起详情" : "展开详情"}</em>
             </div>
           </div>
           </div>
