@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0f3d3e" />
+    <meta
+      name="description"
+      content="面向手机端的 A 股 AI 趋势分析与虚拟交易 PWA。"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icon-192.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Stock Pilot CN</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="hero-card">
+        <div>
+          <p class="eyebrow">PWA · 手机优先 · 简单选股</p>
+          <h1>Stock Pilot CN</h1>
+          <p class="hero-copy">
+            输入一组大陆股票代码，直接看 AI 预测近 5 天、近 10 天可能上涨的股票排序。
+          </p>
+        </div>
+        <button id="installBtn" class="ghost-btn" hidden>安装到手机</button>
+      </header>
+
+      <main class="content-grid">
+        <section class="panel panel-highlight">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">今日选股</p>
+              <h2>涨幅预测排行榜</h2>
+            </div>
+            <span class="pill">适合长辈使用</span>
+          </div>
+
+          <form id="rankingForm" class="stack-form big-form">
+            <label>
+              <span>输入股票代码</span>
+              <textarea
+                id="rankingCodes"
+                name="rankingCodes"
+                rows="4"
+                placeholder="每行一个，或用逗号隔开。例如&#10;600519&#10;000001&#10;300750"
+              ></textarea>
+            </label>
+            <div class="form-actions">
+              <button type="button" id="fillRankingSampleBtn" class="ghost-btn">填入示例股票</button>
+              <button type="submit" class="primary-btn">生成涨幅排序</button>
+            </div>
+          </form>
+
+          <div id="rankingSummary" class="simple-banner">
+            <strong>使用方法：</strong>
+            输入想关注的股票代码，系统会按“近 5 天”和“近 10 天”两个周期，给出可能上涨的排序结果。
+          </div>
+
+          <div class="ranking-grid">
+            <div class="ranking-panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <p class="section-kicker">短线</p>
+                  <h2>近 5 天预测</h2>
+                </div>
+              </div>
+              <div id="ranking5List" class="list-stack empty-state">
+                <p>还没有生成 5 天预测榜单。</p>
+              </div>
+            </div>
+            <div class="ranking-panel">
+              <div class="panel-head compact-head">
+                <div>
+                  <p class="section-kicker">波段</p>
+                  <h2>近 10 天预测</h2>
+                </div>
+              </div>
+              <div id="ranking10List" class="list-stack empty-state">
+                <p>还没有生成 10 天预测榜单。</p>
+              </div>
+            </div>
+          </div>
+
+          <details class="settings-panel">
+            <summary>接口设置</summary>
+            <form id="settingsForm" class="stack-form compact-form">
+              <label>
+                <span>行情接口地址</span>
+                <input
+                  id="marketApiUrl"
+                  name="marketApiUrl"
+                  type="url"
+                  placeholder="例如 https://api.example.com/market"
+                />
+              </label>
+              <label>
+                <span>AI 提供商</span>
+                <select id="aiProvider" name="aiProvider">
+                  <option value="auto">自动选择</option>
+                  <option value="anthropic">Anthropic</option>
+                  <option value="openai">OpenAI</option>
+                  <option value="local">本地规则</option>
+                  <option value="custom">自定义接口</option>
+                </select>
+              </label>
+              <label>
+                <span>AI 接口地址</span>
+                <input
+                  id="aiApiUrl"
+                  name="aiApiUrl"
+                  type="url"
+                  placeholder="例如 https://api.example.com/analyze"
+                />
+              </label>
+              <label>
+                <span>接口令牌</span>
+                <input
+                  id="apiToken"
+                  name="apiToken"
+                  type="password"
+                  placeholder="可选，用于请求头 Authorization"
+                />
+              </label>
+              <div class="form-actions">
+                <button type="submit" class="ghost-btn">保存设置</button>
+              </div>
+              <p id="configHint" class="footnote"></p>
+              <p class="footnote">
+                当前版本会把设置保存到浏览器本地存储。生产环境建议把 AI 密钥放到服务端代理，不要直接暴露在前端。
+              </p>
+            </form>
+          </details>
+
+          <form id="stockForm" class="stack-form">
+            <label>
+              <span>股票代码</span>
+              <input
+                id="stockCode"
+                name="stockCode"
+                type="text"
+                inputmode="numeric"
+                maxlength="6"
+                placeholder="例如 600519"
+                required
+              />
+            </label>
+
+            <label>
+              <span>股票名称</span>
+              <input
+                id="stockName"
+                name="stockName"
+                type="text"
+                placeholder="例如 贵州茅台"
+              />
+            </label>
+
+            <label>
+              <span>当前价格</span>
+              <input
+                id="currentPrice"
+                name="currentPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="输入最新价格"
+                required
+              />
+            </label>
+
+            <label>
+              <span>最近 5 个收盘价</span>
+              <textarea
+                id="recentCloses"
+                name="recentCloses"
+                rows="3"
+                placeholder="例如 148.2,149.4,150.1,151.8,153.2"
+                required
+              ></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button type="button" id="fetchQuoteBtn" class="ghost-btn">
+                拉取行情
+              </button>
+              <button type="button" id="fillSampleBtn" class="ghost-btn">
+                填入示例
+              </button>
+              <button type="submit" class="primary-btn">生成 AI 分析</button>
+              <button type="button" id="remoteAiBtn" class="ghost-btn">
+                调用外部 AI
+              </button>
+            </div>
+          </form>
+
+          <div id="analysisCard" class="analysis-card empty-state">
+            <p>录入股票后，这里会给出趋势判断、置信度、波动提示和建议操作。</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">账户中心</p>
+              <h2>登录与云同步</h2>
+            </div>
+          </div>
+          <form id="authForm" class="stack-form compact-form">
+            <label>
+              <span>用户名</span>
+              <input id="authUsername" name="username" type="text" placeholder="例如 trader01" />
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="authPassword" name="password" type="password" placeholder="至少 6 位" />
+            </label>
+            <div class="form-actions">
+              <button type="submit" class="primary-btn" data-mode="login">登录</button>
+              <button type="submit" class="ghost-btn" data-mode="register">注册</button>
+            </div>
+          </form>
+          <p id="authStatus" class="meta-note"></p>
+          <p id="cloudState" class="meta-note"></p>
+          <div id="authActions" class="action-row"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">模拟资金</p>
+              <h2>账户概览</h2>
+            </div>
+            <button id="resetDataBtn" class="text-btn">重置数据</button>
+          </div>
+
+          <div class="wallet-grid">
+            <article class="metric-card">
+              <span>可用资金</span>
+              <strong id="cashValue">¥0.00</strong>
+            </article>
+            <article class="metric-card">
+              <span>持仓市值</span>
+              <strong id="holdingsValue">¥0.00</strong>
+            </article>
+            <article class="metric-card">
+              <span>总资产</span>
+              <strong id="equityValue">¥0.00</strong>
+            </article>
+            <article class="metric-card">
+              <span>累计收益</span>
+              <strong id="profitValue">¥0.00</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">购物车</p>
+              <h2>待观察股票</h2>
+            </div>
+          </div>
+          <div id="cartList" class="list-stack empty-state">
+            <p>还没有加入购物车的股票。</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">虚拟持仓</p>
+              <h2>模拟买卖</h2>
+            </div>
+          </div>
+          <div id="portfolioList" class="list-stack empty-state">
+            <p>暂无持仓，先在上方分析后加入购物车并买入。</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">交易记录</p>
+              <h2>操作流水</h2>
+            </div>
+          </div>
+          <div id="tradeList" class="list-stack empty-state">
+            <p>当前没有交易记录。</p>
+          </div>
+        </section>
+
+        <section class="panel panel-report">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">复盘时间线</p>
+              <h2>单票轨迹</h2>
+            </div>
+          </div>
+          <div id="reviewPanel" class="report-card empty-state">
+            <p>在持仓或交易记录中点击“查看复盘”后，这里会展示该股票的分析、买卖和价格变化时间线。</p>
+          </div>
+        </section>
+
+        <section class="panel panel-report">
+          <div class="panel-head">
+            <div>
+              <p class="section-kicker">收益分析</p>
+              <h2>策略报告</h2>
+            </div>
+          </div>
+          <div id="reportCard" class="report-card"></div>
+          <div id="reportCharts" class="report-charts"></div>
+        </section>
+      </main>
+    </div>
+
+    <template id="miniChartTemplate">
+      <svg class="mini-chart" viewBox="0 0 240 88" preserveAspectRatio="none">
+        <polyline class="chart-line" points=""></polyline>
+      </svg>
+    </template>
+
+    <script src="./app.js" type="module"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "Stock Pilot CN",
+  "short_name": "StockPilot",
+  "description": "支持手机端安装的 A 股 AI 趋势分析与虚拟交易模拟工具。",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4efe6",
+  "theme_color": "#0f3d3e",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
