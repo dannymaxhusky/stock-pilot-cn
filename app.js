@@ -376,27 +376,27 @@ async function buildModelPredictions(stock) {
 }
 
 function handleWatchlistAction(event) {
-  const button = event.target.closest("button[data-action]");
-  if (!button) return;
-  const code = button.dataset.code;
+  const actionTarget = event.target.closest("[data-action][data-code]");
+  if (!actionTarget) return;
+  const code = actionTarget.dataset.code;
   if (!code) return;
 
-  if (button.dataset.action === "toggle-watch") {
+  if (actionTarget.dataset.action === "toggle-watch") {
     appState.expandedWatchCode = appState.expandedWatchCode === code ? "" : code;
   }
 
-  if (button.dataset.action === "remove-watch") {
+  if (actionTarget.dataset.action === "remove-watch") {
     appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
     if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
     syncRankingsFromWatchlist();
   }
 
-  if (button.dataset.action === "refresh-watch") {
+  if (actionTarget.dataset.action === "refresh-watch") {
     refreshWatchItem(code);
     return;
   }
 
-  if (button.dataset.action === "add-watch-cart") {
+  if (actionTarget.dataset.action === "add-watch-cart") {
     addWatchToCart(code);
     return;
   }
@@ -1262,7 +1262,7 @@ function renderWatchlist() {
       const quickRows = buildWatchQuickRows(item);
       return `
         <article class="watch-card">
-          <button class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" aria-expanded="${expanded ? "true" : "false"}">
+          <div class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}">
           <div class="watch-quote-row">
             <div class="watch-identity">
               <div class="item-title">${item.name}</div>
@@ -1275,7 +1275,7 @@ function renderWatchlist() {
               <em class="watch-toggle-hint">${expanded ? "收起详情" : "展开详情"}</em>
             </div>
           </div>
-          </button>
+          </div>
           <div class="watch-market-board">
             <div class="watch-stat-card">
               <span class="watch-stat-label">真实 5 日</span>
