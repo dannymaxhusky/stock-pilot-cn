@@ -1828,11 +1828,13 @@ function renderMarketMoverList(container, list, label) {
     return;
   }
 
+  const isLoserBoard = /跌幅/.test(label);
   container.className = "market-mover-grid";
   container.innerHTML = list
     .map(
       (item, index) => {
         const inWatchlist = appState.watchlist.some((entry) => entry.code === item.code);
+        const displayChange = isLoserBoard ? -Math.abs(Number(item.changePercent) || 0) : Number(item.changePercent) || 0;
         return `
         <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
@@ -1840,10 +1842,9 @@ function renderMarketMoverList(container, list, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code}</div>
               </div>
               <div class="rank-side rank-side-compact">
-                <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
+                <strong class="${displayChange >= 0 ? "trend-up" : "trend-down"}">${formatSigned(displayChange)}%</strong>
                 <button
                   class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
                   data-rank-action="${inWatchlist ? "view" : "add"}"
@@ -1882,7 +1883,6 @@ function renderRankingList(container, list, key, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code}</div>
               </div>
               <div class="rank-side rank-side-compact">
                 <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>

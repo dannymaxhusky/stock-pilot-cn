@@ -970,6 +970,12 @@ textarea {
   font-size: 0.68rem;
 }
 
+.market-mover-grid .rank-title-wrap {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+}
+
 .rank-side {
   display: grid;
   justify-items: end;
