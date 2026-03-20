@@ -403,7 +403,7 @@ async function analyzeWithAnthropic(stock, localAnalysis) {
   let parsed;
 
   try {
-    parsed = JSON.parse(text);
+    parsed = parseLooseJson(text);
   } catch {
     console.error(
       `[Anthropic parse error] endpoint=${endpoint} model=${ANTHROPIC_MODEL} text=${String(text).slice(0, 600)}`
@@ -442,6 +442,28 @@ function extractAnthropicText(payload) {
     payload?.content?.[0]?.text ||
     ""
   );
+}
+
+function parseLooseJson(text) {
+  const source = String(text || "").trim();
+  if (!source) throw new Error("empty-json");
+
+  try {
+    return JSON.parse(source);
+  } catch {}
+
+  const fenced = source.match(/```json\s*([\s\S]*?)\s*```/i) || source.match(/```\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    return JSON.parse(fenced[1].trim());
+  }
+
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+  if (start !== -1 && end !== -1 && end > start) {
+    return JSON.parse(source.slice(start, end + 1));
+  }
+
+  throw new Error("unparseable-json");
 }
 
 function buildLocalAnalysis(stock) {
