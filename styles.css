@@ -56,7 +56,7 @@ button {
 .app-shell {
   max-width: 980px;
   margin: 0 auto;
-  padding: calc(20px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+  padding: calc(20px + env(safe-area-inset-top)) 18px calc(110px + env(safe-area-inset-bottom));
 }
 
 .hero-card,
@@ -68,11 +68,42 @@ button {
   border-radius: var(--radius-lg);
 }
 
+.bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(255, 248, 238, 0.94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(15, 61, 62, 0.08);
+}
+
+.nav-btn {
+  min-height: 58px;
+  padding: 12px 8px;
+  border-radius: 18px;
+  background: rgba(15, 61, 62, 0.08);
+  color: var(--primary);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.nav-btn.active {
+  background: linear-gradient(135deg, var(--primary), #186568);
+  color: #fff;
+}
+
 .hero-card {
   position: relative;
   overflow: hidden;
-  padding: 24px;
-  margin-bottom: 18px;
+  padding: 28px 24px;
+  margin-bottom: 20px;
   display: grid;
   gap: 18px;
 }
@@ -91,7 +122,7 @@ button {
 .eyebrow,
 .section-kicker {
   margin: 0 0 8px;
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent);
@@ -104,28 +135,29 @@ h2 {
 }
 
 h1 {
-  font-size: clamp(2rem, 5vw, 3.2rem);
-  line-height: 1;
+  font-size: clamp(2.2rem, 5vw, 3.2rem);
+  line-height: 1.05;
 }
 
 h2 {
-  font-size: 1.2rem;
+  font-size: 1.36rem;
 }
 
 .hero-copy {
   max-width: 34rem;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   color: var(--muted);
-  line-height: 1.6;
+  font-size: 1.04rem;
+  line-height: 1.75;
 }
 
 .content-grid {
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 
 .panel {
-  padding: 18px;
+  padding: 22px 18px;
 }
 
 .panel-highlight {
@@ -133,25 +165,26 @@ h2 {
 }
 
 .simple-banner {
-  margin: 16px 0;
-  padding: 14px 16px;
+  margin: 18px 0;
+  padding: 16px 18px;
   border-radius: var(--radius-md);
   background: rgba(15, 61, 62, 0.06);
   color: var(--text);
-  line-height: 1.7;
+  font-size: 1rem;
+  line-height: 1.75;
 }
 
 .ranking-grid {
   display: grid;
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 16px;
+  margin-bottom: 20px;
 }
 
 .ranking-panel {
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.64);
   border: 1px solid rgba(15, 61, 62, 0.08);
-  padding: 14px;
+  padding: 16px;
 }
 
 .compact-head {
@@ -167,17 +200,17 @@ h2 {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 9px 14px;
   border-radius: 999px;
   background: var(--primary-soft);
   color: var(--primary);
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 600;
 }
 
@@ -198,14 +231,14 @@ h2 {
 
 .stack-form {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .big-form textarea,
 .big-form input,
 .big-form select,
 .big-form button {
-  font-size: 1.08rem;
+  font-size: 1.12rem;
 }
 
 .compact-form {
@@ -241,7 +274,7 @@ h2 {
 }
 
 .stack-form span {
-  font-size: 0.92rem;
+  font-size: 1rem;
   color: var(--muted);
 }
 
@@ -252,7 +285,8 @@ select {
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
-  padding: 14px 16px;
+  min-height: 54px;
+  padding: 15px 16px;
   color: var(--text);
   transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
@@ -282,7 +316,10 @@ textarea {
 .ghost-btn,
 .text-btn {
   border-radius: 999px;
-  padding: 12px 16px;
+  min-height: 52px;
+  padding: 13px 18px;
+  font-size: 1rem;
+  font-weight: 700;
   transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
 }
 
@@ -413,7 +450,8 @@ textarea {
 
 .analysis-grid,
 .wallet-grid,
-.report-grid {
+.report-grid,
+.user-summary-grid {
   display: grid;
   gap: 12px;
 }
@@ -423,60 +461,130 @@ textarea {
 }
 
 .metric-card {
-  padding: 16px;
+  padding: 18px;
 }
 
 .metric-card span {
   display: block;
-  font-size: 0.9rem;
+  font-size: 0.98rem;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .metric-card strong {
-  font-size: 1.2rem;
+  font-size: 1.42rem;
 }
 
 .empty-state {
   color: var(--muted);
   text-align: center;
-  padding: 20px;
+  padding: 26px 20px;
+  font-size: 1rem;
+  line-height: 1.7;
 }
 
 .list-stack {
   display: grid;
-  gap: 12px;
+  gap: 14px;
 }
 
 .list-item {
-  padding: 14px;
+  padding: 16px;
 }
 
 .rank-item {
   display: grid;
-  grid-template-columns: 52px 1fr;
-  gap: 12px;
+  grid-template-columns: 58px 1fr;
+  gap: 14px;
   align-items: center;
-  padding: 14px;
+  padding: 16px;
   border-radius: var(--radius-md);
   background: var(--surface-strong);
   border: 1px solid rgba(15, 61, 62, 0.08);
 }
 
+.rank-clickable {
+  cursor: pointer;
+}
+
+.rank-clickable:active {
+  transform: scale(0.99);
+}
+
 .rank-no {
-  width: 52px;
-  height: 52px;
+  width: 58px;
+  height: 58px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: var(--primary);
   color: #fff;
-  font-size: 1.2rem;
+  font-size: 1.32rem;
   font-weight: 700;
 }
 
 .rank-main .item-title {
+  font-size: 1.18rem;
+}
+
+.watch-card,
+.model-card {
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  border: 1px solid rgba(15, 61, 62, 0.08);
+  padding: 16px;
+}
+
+.user-summary-grid {
+  margin-bottom: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.watch-expanded {
+  margin-top: 12px;
+}
+
+.compare-table-card {
+  margin-top: 12px;
+  border-radius: var(--radius-md);
+  background: rgba(15, 61, 62, 0.05);
+  border: 1px solid rgba(15, 61, 62, 0.08);
+  padding: 14px;
+}
+
+.compare-table-card h3 {
+  margin: 0 0 10px;
   font-size: 1.08rem;
+}
+
+.market-facts {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.compare-table {
+  display: grid;
+}
+
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px dashed rgba(15, 61, 62, 0.1);
+  font-size: 0.96rem;
+}
+
+.compare-header {
+  display: none;
+}
+
+.model-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
 }
 
 .item-head,
@@ -494,12 +602,14 @@ textarea {
 
 .item-title {
   font-weight: 700;
+  font-size: 1.12rem;
 }
 
 .item-subtitle,
 .meta-note {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.98rem;
+  line-height: 1.7;
 }
 
 .tag-row {
@@ -510,8 +620,8 @@ textarea {
 }
 
 .tag {
-  font-size: 0.82rem;
-  padding: 6px 10px;
+  font-size: 0.92rem;
+  padding: 8px 12px;
   border-radius: 999px;
   background: rgba(15, 61, 62, 0.08);
   color: var(--primary);
@@ -539,6 +649,10 @@ textarea {
   margin: 12px 0 8px;
   background: linear-gradient(180deg, rgba(15, 61, 62, 0.06), rgba(15, 61, 62, 0.01));
   border-radius: 14px;
+}
+
+.candle-chart {
+  background: linear-gradient(180deg, rgba(15, 61, 62, 0.05), rgba(201, 109, 54, 0.03));
 }
 
 .chart-line {
@@ -689,5 +803,26 @@ textarea {
 
   .ranking-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .model-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .market-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .compare-row {
+    grid-template-columns: 1.25fr 0.8fr 0.7fr 0.9fr 0.9fr;
+    gap: 8px;
+    font-size: 0.88rem;
+  }
+
+  .compare-header {
+    display: grid;
+    color: var(--muted);
+    font-weight: 700;
+    padding-top: 0;
   }
 }

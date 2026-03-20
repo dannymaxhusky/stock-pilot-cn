@@ -16,6 +16,14 @@ const els = {
   rankingSummary: document.querySelector("#rankingSummary"),
   ranking5List: document.querySelector("#ranking5List"),
   ranking10List: document.querySelector("#ranking10List"),
+  watchlistSearchForm: document.querySelector("#watchlistSearchForm"),
+  watchlistQuery: document.querySelector("#watchlistQuery"),
+  watchlistMessage: document.querySelector("#watchlistMessage"),
+  watchlistList: document.querySelector("#watchlistList"),
+  marketTopGainers: document.querySelector("#marketTopGainers"),
+  marketTopLosers: document.querySelector("#marketTopLosers"),
+  futureTop5: document.querySelector("#futureTop5"),
+  futureTop10: document.querySelector("#futureTop10"),
   stockCode: document.querySelector("#stockCode"),
   stockName: document.querySelector("#stockName"),
   currentPrice: document.querySelector("#currentPrice"),
@@ -40,15 +48,17 @@ const els = {
   aiApiUrl: document.querySelector("#aiApiUrl"),
   apiToken: document.querySelector("#apiToken"),
   settingsForm: document.querySelector("#settingsForm"),
-  authForm: document.querySelector("#authForm"),
-  authUsername: document.querySelector("#authUsername"),
-  authPassword: document.querySelector("#authPassword"),
-  authStatus: document.querySelector("#authStatus"),
-  authActions: document.querySelector("#authActions"),
-  syncBtn: document.querySelector("#syncBtn"),
-  cloudState: document.querySelector("#cloudState"),
+  profileForm: document.querySelector("#profileForm"),
+  profileName: document.querySelector("#profileName"),
+  profileCity: document.querySelector("#profileCity"),
+  profileRisk: document.querySelector("#profileRisk"),
+  tradeLotSize: document.querySelector("#tradeLotSize"),
+  userSummary: document.querySelector("#userSummary"),
+  modelSummary: document.querySelector("#modelSummary"),
   reportCharts: document.querySelector("#reportCharts"),
-  configHint: document.querySelector("#configHint")
+  configHint: document.querySelector("#configHint"),
+  bottomNav: document.querySelector("#bottomNav"),
+  tabSections: document.querySelectorAll("[data-tab]")
 };
 
 let deferredPrompt = null;
@@ -57,7 +67,8 @@ let serverConfig = {
   openaiModel: "",
   hasAnthropicKey: false,
   anthropicModel: "",
-  defaultAiProvider: "local"
+  defaultAiProvider: "local",
+  availableProviders: [{ id: "local", label: "本地规则引擎" }]
 };
 let appState = loadState();
 
@@ -66,26 +77,48 @@ boot();
 async function boot() {
   bindEvents();
   registerServiceWorker();
-  await Promise.all([loadServerConfig(), restoreSession()]);
+  await Promise.all([loadServerConfig(), loadMovers()]);
   renderAll();
 }
 
 function bindEvents() {
+  els.watchlistSearchForm.addEventListener("submit", handleWatchlistSearch);
   els.rankingForm.addEventListener("submit", handleRankingSubmit);
   els.fillRankingSampleBtn.addEventListener("click", fillRankingSample);
-  els.stockForm.addEventListener("submit", handleAnalyze);
-  els.fillSampleBtn.addEventListener("click", fillSample);
-  els.fetchQuoteBtn.addEventListener("click", handleFetchQuote);
-  els.remoteAiBtn.addEventListener("click", handleRemoteAnalyze);
+  if (els.stockForm) els.stockForm.addEventListener("submit", handleAnalyze);
+  if (els.fillSampleBtn) els.fillSampleBtn.addEventListener("click", fillSample);
+  if (els.fetchQuoteBtn) els.fetchQuoteBtn.addEventListener("click", handleFetchQuote);
+  if (els.remoteAiBtn) els.remoteAiBtn.addEventListener("click", handleRemoteAnalyze);
   els.resetDataBtn.addEventListener("click", resetPortfolioOnly);
   els.settingsForm.addEventListener("submit", handleSaveSettings);
-  els.authForm.addEventListener("submit", handleLogin);
-  els.authActions.addEventListener("click", handleAuthAction);
+  els.profileForm.addEventListener("submit", handleSaveProfile);
+  els.watchlistList.addEventListener("click", handleWatchlistAction);
   els.cartList.addEventListener("click", handleCartAction);
   els.portfolioList.addEventListener("click", handlePortfolioAction);
   els.tradeList.addEventListener("click", handleTradeAction);
+  els.bottomNav.addEventListener("click", handleTabChange);
+  els.ranking5List.addEventListener("click", handleOpenFromRanking);
+  els.ranking10List.addEventListener("click", handleOpenFromRanking);
+  els.futureTop5.addEventListener("click", handleOpenFromRanking);
+  els.futureTop10.addEventListener("click", handleOpenFromRanking);
+  els.marketTopGainers.addEventListener("click", handleOpenFromRanking);
+  els.marketTopLosers.addEventListener("click", handleOpenFromRanking);
   window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   els.installBtn.addEventListener("click", installPwa);
+}
+
+function handleTabChange(event) {
+  const button = event.target.closest("[data-tab-target]");
+  if (!button) return;
+  appState.activeTab = button.dataset.tabTarget;
+  saveState();
+  renderTabs();
+}
+
+function handleOpenFromRanking(event) {
+  const card = event.target.closest("[data-open-code]");
+  if (!card) return;
+  openStockFromList(card.dataset.openCode, card.dataset.openName || "");
 }
 
 function loadState() {
@@ -99,6 +132,7 @@ function loadState() {
       ...fallback,
       ...parsed,
       settings: { ...fallback.settings, ...(parsed.settings || {}) },
+      profile: { ...fallback.profile, ...(parsed.profile || {}) },
       auth: { ...fallback.auth, ...(parsed.auth || {}) }
     };
   } catch {
@@ -114,6 +148,12 @@ function defaultState() {
       horizon10: [],
       updatedAt: null
     },
+    movers: {
+      gainers: [],
+      losers: [],
+      updatedAt: null
+    },
+    watchlist: [],
     cart: [],
     holdings: [],
     trades: [],
@@ -125,11 +165,19 @@ function defaultState() {
       aiApiUrl: "",
       apiToken: ""
     },
+    profile: {
+      name: "股友",
+      city: "",
+      riskPreference: "稳健",
+      tradeLotSize: 100
+    },
     auth: {
       user: null,
       cloudSyncedAt: null
     },
-    reviewCode: ""
+    reviewCode: "",
+    activeTab: "watchlist",
+    expandedWatchCode: ""
   };
 }
 
@@ -146,7 +194,8 @@ async function loadServerConfig() {
       openaiModel: "",
       hasAnthropicKey: false,
       anthropicModel: "",
-      defaultAiProvider: "local"
+      defaultAiProvider: "local",
+      availableProviders: [{ id: "local", label: "本地规则引擎" }]
     };
   }
 }
@@ -173,6 +222,18 @@ function handleSaveSettings(event) {
   renderSettings();
 }
 
+function handleSaveProfile(event) {
+  event.preventDefault();
+  appState.profile.name = els.profileName.value.trim() || "股友";
+  appState.profile.city = els.profileCity.value.trim();
+  appState.profile.riskPreference = els.profileRisk.value || "稳健";
+  appState.profile.tradeLotSize = normalizeTradeLotSize(els.tradeLotSize.value);
+  saveState();
+  renderUserPanel();
+  renderCart();
+  renderNotice("用户信息已保存，模拟交易参数已更新。");
+}
+
 function fillSample() {
   const sample = SAMPLE_STOCKS[Math.floor(Math.random() * SAMPLE_STOCKS.length)];
   els.stockCode.value = sample.code;
@@ -183,6 +244,210 @@ function fillSample() {
 
 function fillRankingSample() {
   els.rankingCodes.value = SAMPLE_STOCKS.map((item) => item.code).join("\n");
+}
+
+async function handleWatchlistSearch(event) {
+  event.preventDefault();
+  const query = els.watchlistQuery.value.trim();
+  if (!query) {
+    els.watchlistMessage.textContent = "请输入股票代码或名称。";
+    return;
+  }
+
+  const button = event.submitter || els.watchlistSearchForm.querySelector(".primary-btn");
+
+  try {
+    setBusyState(button, true, "查询中...");
+    const candidates = await searchStocks(query);
+    if (!candidates.length) {
+      els.watchlistMessage.textContent = "没有找到对应股票，请换一个代码或名称试试。";
+      return;
+    }
+
+    const target = candidates[0];
+    await addToWatchlist(target.code, target.name);
+    els.watchlistQuery.value = "";
+    els.watchlistMessage.textContent = `已加入 ${target.name}（${target.code}）到关注清单。`;
+  } catch (error) {
+    els.watchlistMessage.textContent = `加入失败：${error.message}`;
+  } finally {
+    setBusyState(button, false, "加入关注清单");
+  }
+}
+
+async function searchStocks(query) {
+  const keyword = query.trim();
+  if (/^\d{6}$/.test(keyword)) {
+    const quote = await fetchQuote(keyword);
+    return [{ code: quote.code || keyword, name: quote.name || keyword }];
+  }
+
+  const result = await apiRequest(`/search?q=${encodeURIComponent(keyword)}`);
+  return result.items || [];
+}
+
+async function addToWatchlist(code, name) {
+  const quote = await fetchQuote(code);
+  const predictions = await buildModelPredictions({
+    code,
+    name: name || quote.name || code,
+    currentPrice: quote.currentPrice,
+    closes: quote.closes
+  });
+
+  const watchItem = {
+    code,
+    name: name || quote.name || code,
+    currentPrice: quote.currentPrice,
+    changePercent: quote.changePercent,
+    candles: quote.candles || buildFallbackCandles(quote.closes || []),
+    closes: quote.closes,
+    predictions,
+    updatedAt: new Date().toISOString()
+  };
+
+  const index = appState.watchlist.findIndex((item) => item.code === code);
+  if (index >= 0) appState.watchlist[index] = watchItem;
+  else appState.watchlist.unshift(watchItem);
+  appState.expandedWatchCode = code;
+  saveState();
+  renderWatchlist();
+}
+
+async function buildModelPredictions(stock) {
+  const providers = serverConfig.availableProviders?.length
+    ? serverConfig.availableProviders.map((item) => item.id)
+    : [serverConfig.defaultAiProvider || "local"];
+
+  const uniqueProviders = [...new Set(providers.filter(Boolean))];
+  const results = await Promise.all(
+    uniqueProviders.map(async (provider) => {
+      try {
+        const result = await apiRequest("/ai/analyze", {
+          method: "POST",
+          body: JSON.stringify({
+            provider,
+            stockCode: stock.code,
+            stockName: stock.name,
+            currentPrice: stock.currentPrice,
+            recentCloses: stock.closes
+          })
+        });
+        return {
+          provider: result.provider,
+          model: result.model,
+          direction: result.ai.direction,
+          confidence: result.ai.confidence,
+          targetPrice: result.ai.targetPrice,
+          riskLevel: result.ai.riskLevel,
+          rationale: result.ai.rationale
+        };
+      } catch {
+        const local = buildLocalAnalysis(stock, "local");
+        return {
+          provider,
+          model: provider === "local" ? "rule-engine" : provider,
+          direction: local.ai.direction,
+          confidence: local.ai.confidence,
+          targetPrice: local.ai.targetPrice,
+          riskLevel: local.ai.riskLevel,
+          rationale: local.ai.rationale
+        };
+      }
+    })
+  );
+
+  return results;
+}
+
+function handleWatchlistAction(event) {
+  const button = event.target.closest("button[data-action]");
+  if (!button) return;
+  const code = button.dataset.code;
+  if (!code) return;
+
+  if (button.dataset.action === "toggle-watch") {
+    appState.expandedWatchCode = appState.expandedWatchCode === code ? "" : code;
+  }
+
+  if (button.dataset.action === "remove-watch") {
+    appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
+    if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
+  }
+
+  if (button.dataset.action === "refresh-watch") {
+    refreshWatchItem(code);
+    return;
+  }
+
+  if (button.dataset.action === "add-watch-cart") {
+    addWatchToCart(code);
+    return;
+  }
+
+  saveState();
+  renderWatchlist();
+}
+
+async function openStockFromList(code, name) {
+  appState.activeTab = "watchlist";
+  saveState();
+  renderTabs();
+  els.watchlistMessage.textContent = `正在打开 ${name || code}...`;
+  try {
+    await addToWatchlist(code, name);
+    els.watchlistMessage.textContent = `${name || code} 已展开详细预测。`;
+  } catch (error) {
+    els.watchlistMessage.textContent = `打开失败：${error.message}`;
+  }
+}
+
+async function refreshWatchItem(code) {
+  const item = appState.watchlist.find((entry) => entry.code === code);
+  if (!item) return;
+  try {
+    els.watchlistMessage.textContent = `正在更新 ${item.name}...`;
+    await addToWatchlist(item.code, item.name);
+    els.watchlistMessage.textContent = `${item.name} 已更新最新行情与预测。`;
+  } catch (error) {
+    els.watchlistMessage.textContent = `更新失败：${error.message}`;
+  }
+}
+
+function addWatchToCart(code) {
+  const item = appState.watchlist.find((entry) => entry.code === code);
+  if (!item) return;
+  const prediction = item.predictions?.[0];
+  if (!prediction) {
+    els.watchlistMessage.textContent = "当前股票还没有可用预测，暂时不能加入虚拟交易。";
+    return;
+  }
+
+  const cartItem = {
+    id: crypto.randomUUID(),
+    code: item.code,
+    name: item.name,
+    currentPrice: item.currentPrice,
+    closes: item.closes,
+    analyzedAt: item.updatedAt || new Date().toISOString(),
+    provider: prediction.provider,
+    model: prediction.model,
+    ai: {
+      direction: prediction.direction,
+      confidence: prediction.confidence,
+      targetPrice: prediction.targetPrice,
+      riskLevel: prediction.riskLevel,
+      rationale: prediction.rationale
+    }
+  };
+
+  const index = appState.cart.findIndex((entry) => entry.code === code);
+  if (index >= 0) appState.cart[index] = cartItem;
+  else appState.cart.unshift(cartItem);
+  appState.activeTab = "trade";
+  saveState();
+  renderAll();
+  els.watchlistMessage.textContent = `${item.name} 已加入虚拟交易购物车。`;
 }
 
 async function handleFetchQuote() {
@@ -502,6 +767,27 @@ async function fetchQuote(code) {
   return apiRequest(`/quote?code=${encodeURIComponent(code)}`);
 }
 
+async function loadMovers() {
+  try {
+    const [gainers, losers] = await Promise.all([
+      apiRequest("/movers?type=gainers"),
+      apiRequest("/movers?type=losers")
+    ]);
+    appState.movers = {
+      gainers: gainers.items || [],
+      losers: losers.items || [],
+      updatedAt: new Date().toISOString()
+    };
+    saveState();
+  } catch {
+    appState.movers = {
+      gainers: [],
+      losers: [],
+      updatedAt: null
+    };
+  }
+}
+
 function persistAnalysis(analysis) {
   appState.lastAnalysis = analysis;
   appState.analysisHistory = [toAnalysisSnapshot(analysis), ...(appState.analysisHistory || [])]
@@ -560,7 +846,7 @@ function handleCartAction(event) {
   }
 
   if (button.dataset.action === "buy") {
-    buyStock(item, 100);
+    buyStock(item, appState.profile?.tradeLotSize || 100);
   }
 
   saveState();
@@ -699,8 +985,8 @@ function handleTradeAction(event) {
   const trade = appState.trades.find((entry) => entry.id === button.dataset.id);
   if (!trade) return;
   if (button.dataset.action === "reuse-analysis") {
-    els.stockCode.value = trade.code;
-    els.stockName.value = trade.name;
+    openStockFromList(trade.code, trade.name);
+    return;
   }
   if (button.dataset.action === "review") {
     appState.reviewCode = trade.code;
@@ -832,16 +1118,157 @@ function resetPortfolioOnly() {
 }
 
 function renderAll() {
+  renderTabs();
   renderSettings();
-  renderAuth();
+  renderUserPanel();
   renderWallet();
+  renderWatchlist();
   renderRankings();
-  renderAnalysis();
+  renderMovers();
   renderCart();
   renderPortfolio();
   renderTrades();
   renderReviewPanel();
   renderReport();
+}
+
+function renderWatchlist() {
+  if (!appState.watchlist.length) {
+    els.watchlistList.className = "list-stack empty-state";
+    els.watchlistList.innerHTML = "<p>还没有关注的股票。</p>";
+    return;
+  }
+
+  els.watchlistList.className = "list-stack";
+  els.watchlistList.innerHTML = appState.watchlist
+    .map((item) => {
+      const expanded = appState.expandedWatchCode === item.code;
+      const topPrediction = item.predictions?.[0];
+      return `
+        <article class="watch-card">
+          <div class="item-head">
+            <div>
+              <div class="item-title">${item.name}</div>
+              <div class="item-subtitle">${item.code}</div>
+            </div>
+            <strong class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</strong>
+          </div>
+          <div class="tag-row">
+            <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
+            ${
+              topPrediction
+                ? `<span class="tag ${mapTrendClass(topPrediction.direction)}">${renderProviderName(topPrediction.provider)} ${topPrediction.direction}</span>`
+                : ""
+            }
+            ${
+              topPrediction
+                ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>`
+                : ""
+            }
+          </div>
+          <div class="action-row">
+            <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">${expanded ? "收起" : "展开"}</button>
+            <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
+            <button class="primary-btn" data-action="add-watch-cart" data-code="${item.code}">加入虚拟交易</button>
+            <button class="text-btn" data-action="remove-watch" data-code="${item.code}">删除</button>
+          </div>
+          ${
+            expanded
+              ? `
+                <div class="watch-expanded">
+                  ${buildCandlestickChart(item.candles || buildFallbackCandles(item.closes || []), `${item.name} K 线走势`)}
+                  ${buildWatchComparison(item)}
+                  <div class="model-grid">
+                    ${(item.predictions || [])
+                      .map(
+                        (prediction) => `
+                          <article class="model-card">
+                            <div class="item-head">
+                              <div>
+                                <div class="item-title">${renderProviderName(prediction.provider)}</div>
+                                <div class="item-subtitle">${prediction.model || prediction.provider}</div>
+                              </div>
+                              <span class="pill ${mapTrendClass(prediction.direction)}">${prediction.direction}</span>
+                            </div>
+                            <div class="tag-row">
+                              <span class="tag">置信度 ${prediction.confidence}%</span>
+                              <span class="tag ${mapRiskClass(prediction.riskLevel)}">风险 ${prediction.riskLevel}</span>
+                              <span class="tag">目标价 ${formatMoney(prediction.targetPrice)}</span>
+                            </div>
+                            <p class="meta-note">${prediction.rationale}</p>
+                          </article>
+                        `
+                      )
+                      .join("")}
+                  </div>
+                </div>
+              `
+              : ""
+          }
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function buildWatchComparison(item) {
+  const latest5 = calculateRecentChange(item.closes || []);
+  const rows = (item.predictions || [])
+    .map(
+      (prediction) => `
+        <div class="compare-row">
+          <span>${renderProviderName(prediction.provider)}</span>
+          <strong class="${mapTrendClass(prediction.direction)}">${prediction.direction}</strong>
+          <span>${prediction.confidence}%</span>
+          <span>${formatMoney(prediction.targetPrice)}</span>
+          <span class="${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
+            round2(((prediction.targetPrice - item.currentPrice) / item.currentPrice) * 100)
+          )}%</span>
+        </div>
+      `
+    )
+    .join("");
+
+  return `
+    <div class="compare-table-card">
+      <h3>实际数据 vs 模型预测</h3>
+      <div class="market-facts">
+        <div class="detail-box">
+          <span>当前价格</span>
+          <strong>${formatMoney(item.currentPrice)}</strong>
+        </div>
+        <div class="detail-box">
+          <span>今日涨跌</span>
+          <strong class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(
+            Number(item.changePercent) || 0
+          )}%</strong>
+        </div>
+        <div class="detail-box">
+          <span>近 5 日表现</span>
+          <strong class="${latest5 >= 0 ? "trend-up" : "trend-down"}">${formatSigned(latest5)}%</strong>
+        </div>
+      </div>
+      <div class="compare-header compare-row">
+        <span>模型</span>
+        <span>方向</span>
+        <span>置信度</span>
+        <span>目标价</span>
+        <span>目标空间</span>
+      </div>
+      <div class="compare-table">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
+function renderTabs() {
+  els.tabSections.forEach((section) => {
+    section.classList.toggle("hidden", section.dataset.tab !== appState.activeTab);
+  });
+  document.querySelectorAll(".nav-btn").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tabTarget === appState.activeTab);
+  });
 }
 
 function renderSettings() {
@@ -860,9 +1287,49 @@ function renderSettings() {
 function renderRankings() {
   renderRankingList(els.ranking5List, appState.rankings?.horizon5 || [], "predicted5d", "近 5 天");
   renderRankingList(els.ranking10List, appState.rankings?.horizon10 || [], "predicted10d", "近 10 天");
+  renderRankingList(els.futureTop5, appState.rankings?.horizon5 || [], "predicted5d", "未来 5 天");
+  renderRankingList(els.futureTop10, appState.rankings?.horizon10 || [], "predicted10d", "未来 10 天");
   if (appState.rankings?.updatedAt) {
     els.rankingSummary.textContent = `最近一次排序时间：${formatDateTime(appState.rankings.updatedAt)}`;
   }
+}
+
+function renderMovers() {
+  renderMarketMoverList(els.marketTopGainers, appState.movers?.gainers || [], "实时涨幅前十");
+  renderMarketMoverList(els.marketTopLosers, appState.movers?.losers || [], "实时跌幅前十");
+}
+
+function renderMarketMoverList(container, list, label) {
+  if (!list.length) {
+    container.className = "list-stack empty-state";
+    container.innerHTML = `<p>还没有${label}数据。</p>`;
+    return;
+  }
+
+  container.className = "list-stack";
+  container.innerHTML = list
+    .map(
+      (item, index) => `
+        <article class="rank-item rank-clickable" data-open-code="${item.code}" data-open-name="${item.name}">
+          <div class="rank-no">${index + 1}</div>
+          <div class="rank-main">
+            <div class="item-head">
+              <div>
+                <div class="item-title">${item.name}</div>
+                <div class="item-subtitle">${item.code}</div>
+              </div>
+              <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
+            </div>
+            <div class="tag-row">
+              <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
+              <span class="tag">成交额 ${formatLargeNumber(item.amount)}</span>
+              <span class="tag">点开看详情</span>
+            </div>
+          </div>
+        </article>
+      `
+    )
+    .join("");
 }
 
 function renderRankingList(container, list, key, label) {
@@ -876,7 +1343,7 @@ function renderRankingList(container, list, key, label) {
   container.innerHTML = list
     .map(
       (item, index) => `
-        <article class="rank-item">
+        <article class="rank-item rank-clickable" data-open-code="${item.code}" data-open-name="${item.name}">
           <div class="rank-no">${index + 1}</div>
           <div class="rank-main">
             <div class="item-head">
@@ -891,6 +1358,7 @@ function renderRankingList(container, list, key, label) {
               <span class="tag">置信度 ${item.confidence}%</span>
               <span class="tag ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
               <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
+              <span class="tag">点开看详情</span>
             </div>
           </div>
         </article>
@@ -899,26 +1367,42 @@ function renderRankingList(container, list, key, label) {
     .join("");
 }
 
-function renderAuth() {
-  if (appState.auth.user) {
-    els.authStatus.textContent = `当前用户：${appState.auth.user.username}`;
-    els.cloudState.textContent = appState.auth.cloudSyncedAt
-      ? `上次云同步：${formatDateTime(appState.auth.cloudSyncedAt)}`
-      : "还没有云同步记录。";
-    els.authActions.innerHTML = `
-      <button type="button" class="ghost-btn" id="syncBtn">同步到云端</button>
-      <button type="button" class="ghost-btn" data-action="pull-cloud">拉取云端</button>
-      <button type="button" class="text-btn" data-action="logout">退出登录</button>
-    `;
-    els.authForm.classList.add("hidden");
-    els.syncBtn = document.querySelector("#syncBtn");
-    els.syncBtn.addEventListener("click", syncToCloud);
-  } else {
-    els.authStatus.textContent = "当前版本可直接使用选股排行榜；登录功能仅在本地完整版中使用。";
-    els.cloudState.textContent = "如果部署在 Vercel，建议先把它当作在线选股工具使用。";
-    els.authActions.innerHTML = "";
-    els.authForm.classList.remove("hidden");
-  }
+function renderUserPanel() {
+  const profile = appState.profile || defaultState().profile;
+  els.profileName.value = profile.name || "股友";
+  els.profileCity.value = profile.city || "";
+  els.profileRisk.value = profile.riskPreference || "稳健";
+  els.tradeLotSize.value = profile.tradeLotSize || 100;
+
+  els.userSummary.innerHTML = `
+    <article class="metric-card">
+      <span>当前称呼</span>
+      <strong>${profile.name || "股友"}</strong>
+    </article>
+    <article class="metric-card">
+      <span>所在城市</span>
+      <strong>${profile.city || "未填写"}</strong>
+    </article>
+    <article class="metric-card">
+      <span>交易风格</span>
+      <strong>${profile.riskPreference || "稳健"}</strong>
+    </article>
+    <article class="metric-card">
+      <span>默认买入</span>
+      <strong>${profile.tradeLotSize || 100} 股</strong>
+    </article>
+  `;
+
+  const providers = (serverConfig.availableProviders || []).map((item) => item.label).join("、") || "本地规则引擎";
+  const selectedProvider =
+    appState.settings.aiProvider === "auto"
+      ? `自动选择（当前默认 ${renderProviderName(serverConfig.defaultAiProvider)}）`
+      : renderProviderName(appState.settings.aiProvider);
+
+  els.modelSummary.innerHTML = `
+    <strong>当前模型配置：</strong>
+    后台可用模型有 ${providers}。当前前端调用方式为 ${selectedProvider}，用户在股票详情里会直接看到模型名称。
+  `;
 }
 
 function renderWallet() {
@@ -1065,8 +1549,9 @@ function renderAnalysis() {
 }
 
 function renderNotice(message) {
-  els.analysisCard.className = "analysis-card empty-state";
-  els.analysisCard.innerHTML = `<p>${message}</p>`;
+  if (els.watchlistMessage) {
+    els.watchlistMessage.textContent = message;
+  }
 }
 
 function renderCart() {
@@ -1095,7 +1580,7 @@ function renderCart() {
           </div>
           <p class="meta-note">${item.ai.rationale}</p>
           <div class="action-row">
-            <button class="primary-btn" data-action="buy" data-id="${item.id}">模拟买入 100 股</button>
+            <button class="primary-btn" data-action="buy" data-id="${item.id}">模拟买入 ${appState.profile?.tradeLotSize || 100} 股</button>
             <button class="ghost-btn" data-action="remove-cart" data-id="${item.id}">移出购物车</button>
           </div>
         </article>
@@ -1142,14 +1627,15 @@ function renderPortfolio() {
 }
 
 function renderTrades() {
-  if (!appState.trades.length) {
+  const recentTrades = appState.trades.slice(0, 8);
+  if (!recentTrades.length) {
     els.tradeList.className = "list-stack empty-state";
     els.tradeList.innerHTML = "<p>当前没有交易记录。</p>";
     return;
   }
 
   els.tradeList.className = "list-stack";
-  els.tradeList.innerHTML = appState.trades
+  els.tradeList.innerHTML = recentTrades
     .map(
       (trade) => `
         <article class="list-item">
@@ -1171,7 +1657,7 @@ function renderTrades() {
             }
           </div>
           <div class="action-row">
-            <button class="ghost-btn" data-action="reuse-analysis" data-id="${trade.id}">回填代码</button>
+            <button class="ghost-btn" data-action="reuse-analysis" data-id="${trade.id}">打开这只股票</button>
             <button class="ghost-btn" data-action="review" data-id="${trade.id}">查看复盘</button>
           </div>
         </article>
@@ -1381,6 +1867,66 @@ function buildLineChart(values, label) {
   `;
 }
 
+function buildCandlestickChart(candles, label) {
+  const safe = (candles || []).filter(
+    (item) =>
+      Number.isFinite(item.open) &&
+      Number.isFinite(item.close) &&
+      Number.isFinite(item.high) &&
+      Number.isFinite(item.low)
+  );
+  if (!safe.length) return buildLineChart([], label);
+
+  const min = Math.min(...safe.map((item) => item.low));
+  const max = Math.max(...safe.map((item) => item.high));
+  const spread = max - min || 1;
+  const candleWidth = 12;
+  const gap = 6;
+  const startX = 10;
+
+  const bars = safe
+    .map((item, index) => {
+      const x = startX + index * (candleWidth + gap);
+      const wickX = x + candleWidth / 2;
+      const highY = 78 - ((item.high - min) / spread) * 60;
+      const lowY = 78 - ((item.low - min) / spread) * 60;
+      const openY = 78 - ((item.open - min) / spread) * 60;
+      const closeY = 78 - ((item.close - min) / spread) * 60;
+      const bodyY = Math.min(openY, closeY);
+      const bodyHeight = Math.max(2, Math.abs(openY - closeY));
+      const tone = item.close >= item.open ? "#0f7a45" : "#b54739";
+      return `
+        <line x1="${wickX}" y1="${highY}" x2="${wickX}" y2="${lowY}" stroke="${tone}" stroke-width="2"></line>
+        <rect x="${x}" y="${bodyY}" width="${candleWidth}" height="${bodyHeight}" rx="3" fill="${tone}" opacity="0.9"></rect>
+      `;
+    })
+    .join("");
+
+  return `
+    <svg class="mini-chart candle-chart" viewBox="0 0 240 88" preserveAspectRatio="none" aria-label="${label}">
+      ${bars}
+    </svg>
+  `;
+}
+
+function buildFallbackCandles(closes) {
+  const safe = (closes || []).filter((value) => Number.isFinite(value) && value > 0);
+  return safe.map((close, index) => {
+    const previous = safe[index - 1] ?? close;
+    const drift = close - previous;
+    const open = round2(previous);
+    const high = round2(Math.max(open, close) + Math.abs(drift) * 0.35 + close * 0.003);
+    const low = round2(Math.min(open, close) - Math.abs(drift) * 0.35 - close * 0.003);
+    return {
+      date: `${index + 1}`,
+      open,
+      close: round2(close),
+      high,
+      low
+    };
+  });
+}
+
 function buildBarChart(values) {
   const safe = values.length ? values : [0];
   const maxAbs = Math.max(...safe.map((value) => Math.abs(value)), 1);
@@ -1404,6 +1950,12 @@ function buildBarChart(values) {
       ${bars}
     </svg>
   `;
+}
+
+function normalizeTradeLotSize(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric < 100) return 100;
+  return Math.round(numeric / 100) * 100;
 }
 
 async function apiRequest(path, options = {}) {
@@ -1489,6 +2041,19 @@ function formatMoney(value) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   })}`;
+}
+
+function formatLargeNumber(value) {
+  const numeric = Number(value) || 0;
+  if (numeric >= 100000000) return `${round2(numeric / 100000000)} 亿`;
+  if (numeric >= 10000) return `${round2(numeric / 10000)} 万`;
+  return `${numeric}`;
+}
+
+function calculateRecentChange(closes) {
+  const safe = (closes || []).filter((value) => Number.isFinite(value) && value > 0);
+  if (safe.length < 2) return 0;
+  return round2(((safe.at(-1) - safe[0]) / safe[0]) * 100);
 }
 
 function formatDateTime(input) {
