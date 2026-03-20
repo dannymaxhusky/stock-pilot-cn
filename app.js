@@ -1843,7 +1843,7 @@ function renderMarketMoverList(container, list, label) {
               <div class="item-title">${item.name}</div>
               <div class="item-subtitle">
                 <span>${item.code || ""}</span>
-                <span>¥${Number(item.price || 0).toFixed(2)}</span>
+                <span>最新价 ${formatMoney(item.currentPrice || item.price || 0)}</span>
               </div>
             </div>
             <div class="rank-side rank-side-compact">
@@ -1887,7 +1887,7 @@ function renderRankingList(container, list, key, label) {
               <div class="item-title">${item.name}</div>
               <div class="item-subtitle">
                 <span>${item.code || ""}</span>
-                <span>¥${Number(item.price || item.currentPrice || 0).toFixed(2)}</span>
+                <span>最新价 ${formatMoney(item.currentPrice || item.price || 0)}</span>
                 <span class="tag ${mapRiskClass(riskLevel)}">风险 ${riskLevel}</span>
               </div>
             </div>
