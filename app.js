@@ -1840,22 +1840,19 @@ function renderMarketMoverList(container, list, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code} · 现价 ${formatMoney(item.currentPrice)}</div>
+                <div class="item-subtitle">${item.code}</div>
               </div>
-              <div class="rank-side">
+              <div class="rank-side rank-side-compact">
                 <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
+                <button
+                  class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
+                  data-rank-action="${inWatchlist ? "view" : "add"}"
+                  data-open-code="${item.code}"
+                  data-open-name="${item.name}"
+                  aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                  title="${inWatchlist ? "查看自选" : "加入自选"}"
+                >+</button>
               </div>
-            </div>
-            <div class="rank-bottomline rank-bottomline-compact">
-              <span class="rank-inline-note">成交 ${formatLargeNumber(item.amount)}</span>
-              <button
-                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
-                data-rank-action="${inWatchlist ? "view" : "add"}"
-                data-open-code="${item.code}"
-                data-open-name="${item.name}"
-                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
-                title="${inWatchlist ? "查看自选" : "加入自选"}"
-              >${inWatchlist ? "›" : "+"}</button>
             </div>
           </div>
         </article>
@@ -1873,7 +1870,7 @@ function renderRankingList(container, list, key, label) {
     return;
   }
 
-  container.className = "list-stack";
+  container.className = "market-mover-grid";
   container.innerHTML = list
     .map(
       (item, index) => {
@@ -1885,23 +1882,19 @@ function renderRankingList(container, list, key, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code} · ${item.direction} · 现价 ${formatMoney(item.currentPrice)}</div>
+                <div class="item-subtitle">${item.code}</div>
               </div>
-              <div class="rank-side">
+              <div class="rank-side rank-side-compact">
                 <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
-                <span class="rank-price ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
+                <button
+                  class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
+                  data-rank-action="${inWatchlist ? "view" : "add"}"
+                  data-open-code="${item.code}"
+                  data-open-name="${item.name}"
+                  aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                  title="${inWatchlist ? "查看自选" : "加入自选"}"
+                >+</button>
               </div>
-            </div>
-            <div class="rank-bottomline rank-bottomline-compact">
-              <span class="rank-inline-note">置信 ${item.confidence}%</span>
-              <button
-                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
-                data-rank-action="${inWatchlist ? "view" : "add"}"
-                data-open-code="${item.code}"
-                data-open-name="${item.name}"
-                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
-                title="${inWatchlist ? "查看自选" : "加入自选"}"
-              >${inWatchlist ? "›" : "+"}</button>
             </div>
           </div>
         </article>

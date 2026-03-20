@@ -944,6 +944,10 @@ textarea {
   gap: 3px;
 }
 
+.market-mover-grid .rank-main-compact {
+  gap: 0;
+}
+
 .rank-topline {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -981,6 +985,13 @@ textarea {
   font-size: 0.88rem;
 }
 
+.rank-side-compact {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .rank-bottomline {
   display: flex;
   align-items: center;
@@ -1000,6 +1011,12 @@ textarea {
 
 .rank-bottomline-compact {
   min-height: 22px;
+}
+
+.market-mover-grid .rank-bottomline,
+.market-mover-grid .rank-inline-note,
+.market-mover-grid .rank-price {
+  display: none;
 }
 
 .rank-icon-btn {
