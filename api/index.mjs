@@ -1,3 +1,5 @@
+import { list, put } from "@vercel/blob";
+
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
@@ -51,6 +53,19 @@ export default {
         const payload = await request.json();
         const analysis = await analyzeWithAi(payload);
         return json(analysis);
+      }
+
+      if (request.method === "POST" && pathname === "/api/profile/sync") {
+        const payload = await request.json();
+        const saved = await saveCloudProfileSnapshot(payload.profile, payload.snapshot);
+        return json({ ok: true, savedAt: saved.savedAt });
+      }
+
+      if (request.method === "GET" && pathname === "/api/profile/restore") {
+        const name = url.searchParams.get("name") || "";
+        const city = url.searchParams.get("city") || "";
+        const snapshot = await loadCloudProfileSnapshot({ name, city });
+        return json({ found: Boolean(snapshot), snapshot });
       }
 
       if (pathname.startsWith("/api/auth/") || pathname === "/api/portfolio") {
@@ -481,6 +496,49 @@ function validateStockPayload(stock) {
   if (!stock || !/^\d{6}$/.test(stock.stockCode || stock.code || "")) {
     throw new Error("股票代码无效");
   }
+}
+
+async function saveCloudProfileSnapshot(profile, snapshot) {
+  validateCloudProfile(profile);
+  const pathname = await buildCloudProfilePath(profile);
+  const payload = JSON.stringify({
+    profile,
+    ...snapshot,
+    savedAt: new Date().toISOString()
+  });
+
+  const result = await put(pathname, payload, {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+    contentType: "application/json"
+  });
+
+  return { url: result.url, savedAt: new Date().toISOString() };
+}
+
+async function loadCloudProfileSnapshot(profile) {
+  validateCloudProfile(profile);
+  const pathname = await buildCloudProfilePath(profile);
+  const listing = await list({ prefix: pathname, limit: 1 });
+  const blob = listing.blobs?.find((item) => item.pathname === pathname) || listing.blobs?.[0];
+  if (!blob?.url) return null;
+  const response = await fetch(blob.url);
+  if (!response.ok) throw new Error(`云端恢复失败：HTTP ${response.status}`);
+  return response.json();
+}
+
+function validateCloudProfile(profile) {
+  const name = String(profile?.name || "").trim();
+  const city = String(profile?.city || "").trim();
+  if (!name || !city) throw new Error("请先填写称呼和城市后再启用云端恢复");
+}
+
+async function buildCloudProfilePath(profile) {
+  const normalized = `${String(profile.name).trim().toLowerCase()}::${String(profile.city).trim().toLowerCase()}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(normalized));
+  const hash = [...new Uint8Array(digest)].map((item) => item.toString(16).padStart(2, "0")).join("");
+  return `profiles/${hash}.json`;
 }
 
 function normalizeProvider(value) {

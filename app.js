@@ -17,6 +17,7 @@ const els = {
   ranking5List: document.querySelector("#ranking5List"),
   ranking10List: document.querySelector("#ranking10List"),
   watchlistSearchForm: document.querySelector("#watchlistSearchForm"),
+  watchlistSubmitBtn: document.querySelector("#watchlistSubmitBtn"),
   watchlistQuery: document.querySelector("#watchlistQuery"),
   watchlistMessage: document.querySelector("#watchlistMessage"),
   watchlistList: document.querySelector("#watchlistList"),
@@ -56,6 +57,7 @@ const els = {
   tradeLotSize: document.querySelector("#tradeLotSize"),
   userSummary: document.querySelector("#userSummary"),
   modelSummary: document.querySelector("#modelSummary"),
+  cloudSyncStatus: document.querySelector("#cloudSyncStatus"),
   reportCharts: document.querySelector("#reportCharts"),
   configHint: document.querySelector("#configHint"),
   bottomNav: document.querySelector("#bottomNav"),
@@ -72,14 +74,17 @@ let serverConfig = {
   availableProviders: [{ id: "local", label: "基础分析" }]
 };
 let appState = loadState();
+let cloudSyncTimer = null;
 
 boot();
 
 async function boot() {
   bindEvents();
+  installZoomGuards();
   registerServiceWorker();
   await Promise.all([loadServerConfig(), loadMovers(), loadIndices()]);
   syncRankingsFromWatchlist();
+  await tryRestoreCloudProfile("silent");
   renderAll();
 }
 
@@ -243,9 +248,15 @@ function handleSaveProfile(event) {
   appState.profile.riskPreference = els.profileRisk.value || "稳健";
   appState.profile.tradeLotSize = normalizeTradeLotSize(els.tradeLotSize.value);
   saveState();
-  renderUserPanel();
-  renderCart();
-  renderNotice("用户信息已保存，模拟交易参数已更新。");
+  renderAll();
+  const hadLocalData = hasMeaningfulData();
+  void (async () => {
+    if (!hadLocalData) {
+      await tryRestoreCloudProfile("notice");
+    }
+    await syncProfileToCloud("notice");
+    renderNotice("用户信息已保存，模拟交易参数已更新。");
+  })();
 }
 
 function fillSample() {
@@ -271,15 +282,19 @@ async function handleWatchlistSearch(event) {
   const button = event.submitter || els.watchlistSearchForm.querySelector(".primary-btn");
 
   try {
-    setBusyState(button, true, "查询中...");
+    setBusyState(button, true, "查询中...", 8);
     const candidates = await searchStocks(query);
+    setBusyState(button, true, "已找到股票", 30);
     if (!candidates.length) {
       els.watchlistMessage.textContent = "没有找到对应股票，请换一个代码或名称试试。";
       return;
     }
 
     const target = candidates[0];
-    await addToWatchlist(target.code, target.name);
+    await addToWatchlist(target.code, target.name, (progress, label) => {
+      setBusyState(button, true, label, progress);
+    });
+    setBusyState(button, true, "已加入自选", 100);
     els.watchlistQuery.value = "";
     els.watchlistMessage.textContent = `已加入 ${target.name}（${target.code}）到关注清单。`;
   } catch (error) {
@@ -300,14 +315,19 @@ async function searchStocks(query) {
   return result.items || [];
 }
 
-async function addToWatchlist(code, name) {
+async function addToWatchlist(code, name, onProgress = null) {
+  onProgress?.(45, "拉取行情中...");
   const quote = await fetchQuote(code);
-  const predictions = await buildModelPredictions({
+  onProgress?.(58, "模型分析中...");
+  const predictions = await buildModelPredictions(
+    {
     code,
     name: name || quote.name || code,
     currentPrice: quote.currentPrice,
     closes: quote.closes
-  });
+    },
+    onProgress
+  );
 
   const watchItem = {
     code,
@@ -327,14 +347,18 @@ async function addToWatchlist(code, name) {
   syncRankingsFromWatchlist();
   saveState();
   renderWatchlist();
+  renderRankings();
+  renderMovers();
+  scheduleCloudSync();
 }
 
-async function buildModelPredictions(stock) {
+async function buildModelPredictions(stock, onProgress = null) {
   const providers = serverConfig.availableProviders?.length
     ? serverConfig.availableProviders.map((item) => item.id)
     : [serverConfig.defaultAiProvider || "local"];
 
   const uniqueProviders = [...new Set(providers.filter(Boolean))];
+  let completed = 0;
   const results = await Promise.all(
     uniqueProviders.map(async (provider) => {
       try {
@@ -369,6 +393,10 @@ async function buildModelPredictions(stock) {
           riskLevel: local.ai.riskLevel,
           rationale: `${local.ai.rationale}（${renderProviderName(provider)} 调用失败，已回退到基础分析）`
         };
+      } finally {
+        completed += 1;
+        const progress = Math.min(95, 58 + Math.round((completed / uniqueProviders.length) * 34));
+        onProgress?.(progress, `模型分析中 ${completed}/${uniqueProviders.length}`);
       }
     })
   );
@@ -400,6 +428,8 @@ function handleWatchlistAction(event) {
     appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
     if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
     syncRankingsFromWatchlist();
+    renderRankings();
+    scheduleCloudSync();
   }
 
   if (actionTarget.dataset.action === "refresh-watch") {
@@ -524,6 +554,7 @@ function addWatchToCart(code) {
   appState.activeTab = "trade";
   saveState();
   renderAll();
+  scheduleCloudSync();
   els.watchlistMessage.textContent = `${item.name} 已加入虚拟交易购物车。`;
 }
 
@@ -930,6 +961,7 @@ function handleCartAction(event) {
 
   if (button.dataset.action === "remove-cart") {
     appState.cart = appState.cart.filter((entry) => entry.id !== item.id);
+    scheduleCloudSync();
   }
 
   if (button.dataset.action === "buy") {
@@ -988,6 +1020,7 @@ function buyStock(item, quantity) {
     model: item.model,
     reviewType: "trade"
   });
+  scheduleCloudSync();
 }
 
 function handlePortfolioAction(event) {
@@ -1036,6 +1069,7 @@ async function refreshHoldingPrice(holding, button) {
     });
     saveState();
     renderAll();
+    scheduleCloudSync();
   } catch (error) {
     renderNotice(`刷新价格失败：${error.message}`);
   } finally {
@@ -1064,6 +1098,7 @@ function sellHolding(holding, quantity) {
     reviewType: "trade"
   });
   appState.holdings = appState.holdings.filter((entry) => entry.id !== holding.id);
+  scheduleCloudSync();
 }
 
 function handleTradeAction(event) {
@@ -1180,6 +1215,119 @@ function mergeCloudPortfolio(portfolio) {
   saveState();
 }
 
+function getCloudIdentity(profile = appState.profile) {
+  const name = String(profile?.name || "").trim();
+  const city = String(profile?.city || "").trim();
+  if (!name || !city) return null;
+  return { name, city };
+}
+
+function hasMeaningfulData() {
+  return Boolean(
+    (appState.watchlist || []).length ||
+      (appState.cart || []).length ||
+      (appState.holdings || []).length ||
+      (appState.trades || []).length
+  );
+}
+
+function getCloudSnapshot() {
+  return {
+    profile: appState.profile,
+    state: {
+      cash: appState.cash,
+      watchlist: appState.watchlist,
+      cart: appState.cart,
+      holdings: appState.holdings,
+      trades: appState.trades,
+      rankings: appState.rankings,
+      analysisHistory: appState.analysisHistory,
+      lastAnalysis: appState.lastAnalysis,
+      reviewCode: appState.reviewCode
+    }
+  };
+}
+
+function mergeCloudSnapshot(snapshot) {
+  if (!snapshot?.state) return;
+  appState = {
+    ...appState,
+    ...snapshot.state,
+    profile: {
+      ...appState.profile,
+      ...(snapshot.profile || {})
+    }
+  };
+  syncRankingsFromWatchlist();
+  saveState();
+}
+
+function scheduleCloudSync() {
+  if (!getCloudIdentity()) return;
+  clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    void syncProfileToCloud("silent");
+  }, 900);
+}
+
+async function syncProfileToCloud(mode = "silent") {
+  const identity = getCloudIdentity();
+  if (!identity) {
+    if (mode === "notice") {
+      els.cloudSyncStatus.textContent = "请先填写称呼和城市，再启用云端恢复。";
+    }
+    return;
+  }
+
+  try {
+    await apiRequest("/profile/sync", {
+      method: "POST",
+      body: JSON.stringify({
+        profile: identity,
+        snapshot: getCloudSnapshot()
+      })
+    });
+    appState.profile.lastCloudSyncAt = new Date().toISOString();
+    saveState();
+    renderUserPanel();
+  } catch (error) {
+    if (mode === "notice") {
+      els.cloudSyncStatus.textContent = `云端保存失败：${error.message}`;
+    }
+  }
+}
+
+async function tryRestoreCloudProfile(mode = "silent") {
+  const identity = getCloudIdentity();
+  if (!identity) return;
+
+  try {
+    const payload = await apiRequest(
+      `/profile/restore?name=${encodeURIComponent(identity.name)}&city=${encodeURIComponent(identity.city)}`
+    );
+    if (!payload?.found || !payload.snapshot) {
+      if (mode === "notice") {
+        els.cloudSyncStatus.textContent = "云端没有找到这位用户的历史数据，后续保存后会自动建立。";
+      }
+      return;
+    }
+
+    if (mode === "silent" && hasMeaningfulData()) return;
+
+    mergeCloudSnapshot(payload.snapshot);
+    appState.profile.lastCloudSyncAt = payload.snapshot?.profile?.lastCloudSyncAt || new Date().toISOString();
+    saveState();
+    renderAll();
+    if (mode === "notice") {
+      renderNotice(`已恢复 ${identity.name} 的自选股和模拟交易数据。`);
+    }
+  } catch (error) {
+    if (mode === "notice") {
+      els.cloudSyncStatus.textContent = `云端恢复失败：${error.message}`;
+    }
+  }
+}
+
 function getPortableState() {
   return {
     cash: appState.cash,
@@ -1202,6 +1350,7 @@ function resetPortfolioOnly() {
   appState.reviewCode = "";
   saveState();
   renderAll();
+  scheduleCloudSync();
 }
 
 function renderAll() {
@@ -1283,7 +1432,7 @@ function renderWatchlist() {
               <strong>${formatMoney(item.currentPrice)}</strong>
               <span class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</span>
               <small class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSignedMoney(todayMove)}</small>
-              <em class="watch-toggle-hint" data-action="toggle-watch" data-code="${item.code}">${expanded ? "收起详情" : "展开详情"}</em>
+              <span class="watch-toggle-arrow ${expanded ? "is-open" : ""}" data-action="toggle-watch" data-code="${item.code}" aria-label="${expanded ? "收起详情" : "展开详情"}"></span>
             </div>
           </div>
           </div>
@@ -1665,6 +1814,14 @@ function renderUserPanel() {
   els.modelSummary.innerHTML = `
     <strong>当前模型配置：</strong>
     当前已启用的预测来源有 ${providers}。用户在股票详情里会直接看到来源名称，不会显示底层模型代号。
+  `;
+
+  const syncLabel = appState.profile?.lastCloudSyncAt
+    ? `上次云端保存：${formatDateTime(appState.profile.lastCloudSyncAt)}`
+    : "还没有同步到云端";
+  els.cloudSyncStatus.innerHTML = `
+    <strong>云端恢复：</strong>
+    使用“称呼 + 城市”可恢复同一位用户的自选股和模拟交易数据。${syncLabel}
   `;
 }
 
@@ -2467,10 +2624,36 @@ function sanitizeCode(value) {
   return /^\d{6}$/.test(code) ? code : "";
 }
 
-function setBusyState(button, busy, label) {
+function setBusyState(button, busy, label, progress = 0) {
   if (!button) return;
   button.disabled = busy;
+  if (!button.dataset.idleLabel) {
+    button.dataset.idleLabel = button.textContent.trim();
+  }
+  if (busy) {
+    button.classList.add("is-busy");
+    button.style.setProperty("--busy-progress", `${Math.max(0, Math.min(100, Number(progress || 0)))}%`);
+  } else {
+    button.classList.remove("is-busy");
+    button.style.removeProperty("--busy-progress");
+  }
   button.textContent = label;
+}
+
+function installZoomGuards() {
+  let lastTouchEnd = 0;
+  document.addEventListener(
+    "touchend",
+    (event) => {
+      const now = Date.now();
+      if (now - lastTouchEnd <= 320) {
+        event.preventDefault();
+      }
+      lastTouchEnd = now;
+    },
+    { passive: false }
+  );
+  document.addEventListener("dblclick", (event) => event.preventDefault());
 }
 
 function summarizeRationale(momentum, volatility, priceVsAverage, direction) {

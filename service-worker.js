@@ -1,4 +1,4 @@
-const CACHE_NAME = "stock-pilot-cn-cache-v2";
+const CACHE_NAME = "stock-pilot-cn-cache-v3";
 const ASSETS = [
   "./",
   "./index.html",

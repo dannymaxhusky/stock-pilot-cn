@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0f3d3e" />
     <meta
@@ -54,7 +54,7 @@
               />
             </label>
             <div class="form-actions">
-              <button type="submit" class="primary-btn">加入关注清单</button>
+              <button type="submit" class="primary-btn progress-btn" id="watchlistSubmitBtn">加入关注清单</button>
             </div>
           </form>
 
@@ -163,6 +163,9 @@
           </form>
           <div id="modelSummary" class="simple-banner">
             当前可用模型会在这里显示。
+          </div>
+          <div id="cloudSyncStatus" class="simple-banner">
+            保存用户信息后，可自动同步自选股和模拟交易数据。
           </div>
         </section>
 
