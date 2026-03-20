@@ -1,6 +1,7 @@
 const STORAGE_KEY = "stock-pilot-cn-state-v2";
 const INITIAL_CASH = 100000;
 const API_BASE = "/api";
+const AI_BATCH_SCAN_COOLDOWN_MS = 5 * 24 * 60 * 60 * 1000;
 
 const SAMPLE_STOCKS = [
   { code: "600519", name: "贵州茅台", currentPrice: 1678.2, closes: [1602.5, 1618.0, 1636.6, 1650.2, 1671.8] },
@@ -627,34 +628,39 @@ async function handleRankingSubmit(event) {
 
 async function handleAiScanSubmit(event) {
   event.preventDefault();
-  const minPrice = Number(els.scanMinPrice?.value || 0);
-  const maxPrice = Number(els.scanMaxPrice?.value || 0);
+  const button = event.submitter || els.aiScanBtn;
+  const cooldown = getAiBatchScanCooldown();
 
-  if (!Number.isFinite(minPrice) || !Number.isFinite(maxPrice) || minPrice < 0 || maxPrice <= 0 || minPrice > maxPrice) {
-    els.rankingSummary.textContent = "请先填写正确的单价范围，例如最低 3 元、最高 30 元。";
+  if (cooldown.active) {
+    els.rankingSummary.textContent = `批量 AI 预测已锁定，请在 ${cooldown.remainingLabel} 后再试。5 天内不允许重复批量分析，自选股里的单只 AI 分析仍可继续使用。`;
+    setBusyState(button, false, `请 ${cooldown.remainingLabel} 后再试`);
+    button.disabled = true;
     return;
   }
 
-  const button = event.submitter || els.aiScanBtn;
-
   try {
-    setBusyState(button, true, "筛选股票中...", 10);
-    els.rankingSummary.textContent = `正在筛选 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间的候选股票...`;
-    const pool = await apiRequest(
-      `/universe?minPrice=${encodeURIComponent(minPrice)}&maxPrice=${encodeURIComponent(maxPrice)}&limit=24`
-    );
-    const items = pool.items || [];
+    const moverPool = [...(appState.movers?.gainers || []), ...(appState.movers?.losers || [])];
+    const uniqueItems = [...new Map(moverPool.filter((item) => item?.code).map((item) => [item.code, item])).values()];
+
+    if (!uniqueItems.length) {
+      els.rankingSummary.textContent = "还没有拿到真实市场前十数据，请稍后再试。";
+      return;
+    }
+
+    setBusyState(button, true, "整理市场前十中...", 10);
+    els.rankingSummary.textContent = `正在基于真实市场涨跌前十生成 AI 预测，本次候选股票 ${uniqueItems.length} 只。`;
+    const items = uniqueItems.slice(0, 20);
 
     if (!items.length) {
       appState.rankings = {
         openai: { horizon5: [], horizon10: [] },
         anthropic: { horizon5: [], horizon10: [] },
         updatedAt: null,
-        criteria: { minPrice, maxPrice, sampleSize: 0 }
+        criteria: { source: "market-movers", sampleSize: 0 }
       };
       saveState();
       renderRankings();
-      els.rankingSummary.textContent = "这个价格范围内暂时没有找到合适的候选股票。";
+      els.rankingSummary.textContent = "当前真实市场前十里暂时没有可分析的候选股票。";
       return;
     }
 
@@ -686,8 +692,7 @@ async function handleAiScanSubmit(event) {
       },
       updatedAt: new Date().toISOString(),
       criteria: {
-        minPrice,
-        maxPrice,
+        source: "market-movers",
         sampleSize: items.length
       }
     };
@@ -695,12 +700,12 @@ async function handleAiScanSubmit(event) {
     renderRankings();
     scheduleCloudSync();
     setBusyState(button, true, "查询完成", 100);
-    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内完成扫描。OpenAI 分析 ${openaiValid.length} 只，Anthropic 分析 ${anthropicValid.length} 只。结果会跟随当前用户信息一起保存，之后不需要重复查询。`;
+    els.rankingSummary.textContent = `已基于真实市场涨跌前十完成 AI 分析。OpenAI 分析 ${openaiValid.length} 只，Anthropic 分析 ${anthropicValid.length} 只。结果会跟随当前用户信息一起保存，之后不需要重复查询。`;
   } catch (error) {
     els.rankingSummary.textContent = `生成排序失败：${error.message}`;
   } finally {
     setTimeout(() => {
-      setBusyState(button, false, "查询 AI 前十");
+      setBusyState(button, false, "基于市场前十查询 AI 预测");
     }, 320);
   }
 }
@@ -1798,21 +1803,18 @@ function renderRankings() {
   renderRankingList(els.futureTop10, appState.rankings?.anthropic?.horizon5 || [], "predicted5d", "Anthropic 未来 5 天");
   renderRankingList(els.openaiTop10, appState.rankings?.openai?.horizon10 || [], "predicted10d", "OpenAI 未来 10 天");
   renderRankingList(els.anthropicTop10, appState.rankings?.anthropic?.horizon10 || [], "predicted10d", "Anthropic 未来 10 天");
-  if (els.scanMinPrice && appState.rankings?.criteria?.minPrice != null) {
-    els.scanMinPrice.value = appState.rankings.criteria.minPrice;
-  }
-  if (els.scanMaxPrice && appState.rankings?.criteria?.maxPrice != null) {
-    els.scanMaxPrice.value = appState.rankings.criteria.maxPrice;
+  const cooldown = getAiBatchScanCooldown();
+  if (els.aiScanBtn) {
+    els.aiScanBtn.disabled = cooldown.active;
+    els.aiScanBtn.textContent = cooldown.active ? `请 ${cooldown.remainingLabel} 后再试` : "基于市场前十查询 AI 预测";
   }
   if (els.rankingSummary && appState.rankings?.updatedAt) {
     const criteria = appState.rankings.criteria;
-    const rangeText =
-      criteria && Number.isFinite(criteria.minPrice) && Number.isFinite(criteria.maxPrice)
-        ? `${formatMoney(criteria.minPrice)} 到 ${formatMoney(criteria.maxPrice)}`
-        : "当前价格范围";
-    els.rankingSummary.textContent = `最近一次 AI 扫描时间：${formatDateTime(
-      appState.rankings.updatedAt
-    )}，扫描范围 ${rangeText}，候选股票 ${criteria?.sampleSize || 0} 只。`;
+    els.rankingSummary.textContent = cooldown.active
+      ? `最近一次 AI 扫描时间：${formatDateTime(appState.rankings.updatedAt)}，基于真实市场涨跌前十股票池，候选股票 ${criteria?.sampleSize || 0} 只。批量 AI 预测将在 ${cooldown.remainingLabel} 后解锁；这段时间你仍可在自选股里继续做单只 AI 分析。`
+      : `最近一次 AI 扫描时间：${formatDateTime(appState.rankings.updatedAt)}，基于真实市场涨跌前十股票池，候选股票 ${criteria?.sampleSize || 0} 只。`;
+  } else if (els.rankingSummary) {
+    els.rankingSummary.textContent = "系统会基于真实市场涨幅前十和跌幅前十，生成未来 5 天和 10 天的 AI 预测榜单。";
   }
 }
 
@@ -2902,6 +2904,34 @@ function formatDateTime(input) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(input));
+}
+
+function getAiBatchScanCooldown() {
+  const updatedAt = appState.rankings?.updatedAt ? new Date(appState.rankings.updatedAt).getTime() : 0;
+  if (!updatedAt) {
+    return { active: false, remainingMs: 0, remainingLabel: "" };
+  }
+  const remainingMs = updatedAt + AI_BATCH_SCAN_COOLDOWN_MS - Date.now();
+  if (remainingMs <= 0) {
+    return { active: false, remainingMs: 0, remainingLabel: "" };
+  }
+  return {
+    active: true,
+    remainingMs,
+    remainingLabel: formatCooldown(remainingMs)
+  };
+}
+
+function formatCooldown(ms) {
+  const totalMinutes = Math.max(1, Math.ceil(ms / 60000));
+  const days = Math.floor(totalMinutes / (24 * 60));
+  const hours = Math.floor((totalMinutes % (24 * 60)) / 60);
+  const minutes = totalMinutes % 60;
+  const parts = [];
+  if (days) parts.push(`${days}天`);
+  if (hours) parts.push(`${hours}小时`);
+  if (minutes && parts.length < 2) parts.push(`${minutes}分钟`);
+  return parts.slice(0, 2).join("");
 }
 
 function roundMoney(value) {
