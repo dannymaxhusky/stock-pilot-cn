@@ -46,7 +46,7 @@ npm start
 4. 访问 `http://localhost:4173`。
 
 5. 在页面“接口设置”里可选择 `AI 提供商`：
-   `自动选择`、`Anthropic`、`OpenAI`、`本地规则` 或 `自定义接口`。
+   `自动选择`、`Anthropic`、`OpenAI`、`基础分析` 或 `自定义接口`。
 
 ## Vercel 部署
 
@@ -131,5 +131,5 @@ ANTHROPIC_MODEL=claude-3-5-sonnet-latest
 - 内置行情代理使用东方财富公开行情接口做服务端转发。
 - 如果同时配置了 Anthropic 和 OpenAI，当前服务端会优先使用 Anthropic。
 - OpenAI 接入通过服务端调用 `Responses API`，Anthropic 接入通过兼容 `messages` 接口的服务端代理，前端不直接暴露密钥。
-- 如果服务端没有可用 AI Key，程序会自动回退到本地规则引擎。
+- 如果服务端没有可用 AI Key，程序会自动回退到基础分析引擎。
 - 登录后的模拟账户会保存到 `data/db.json`，适合单机或小团队演示。

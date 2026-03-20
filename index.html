@@ -66,54 +66,8 @@
             <p>还没有关注的股票。</p>
           </div>
 
-          <form id="rankingForm" class="stack-form big-form">
-            <label>
-              <span>输入股票代码</span>
-              <textarea
-                id="rankingCodes"
-                name="rankingCodes"
-                rows="4"
-                placeholder="每行一个股票代码，也可以用逗号隔开。例如&#10;600519&#10;000001&#10;300750"
-              ></textarea>
-            </label>
-            <div class="form-actions">
-              <button type="button" id="fillRankingSampleBtn" class="ghost-btn">填入示例股票</button>
-              <button type="submit" class="primary-btn">查看涨幅预测</button>
-            </div>
-          </form>
-
-          <div id="rankingSummary" class="simple-banner">
-            <strong>使用方法：</strong>
-            输入想关注的股票代码，系统会按“未来 5 天”和“未来 10 天”两个周期，给出可能上涨的排序结果。
-          </div>
-
-          <div class="ranking-grid">
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <p class="section-kicker">短线机会</p>
-                  <h2>未来 5 天涨幅预测</h2>
-                </div>
-              </div>
-              <div id="ranking5List" class="list-stack empty-state">
-                <p>还没有生成未来 5 天涨幅榜单。</p>
-              </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <p class="section-kicker">波段机会</p>
-                  <h2>未来 10 天涨幅预测</h2>
-                </div>
-              </div>
-              <div id="ranking10List" class="list-stack empty-state">
-                <p>还没有生成未来 10 天涨幅榜单。</p>
-              </div>
-            </div>
-          </div>
-
           <div class="simple-banner">
-            页面已经简化成手机直接可用的模式。先加自选看预测，再决定要不要加入模拟买卖。
+            页面只保留一份自选清单。未来 5 天和 10 天的判断，都会跟随每一只自选股一起显示。
           </div>
         </section>
 

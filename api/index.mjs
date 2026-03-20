@@ -452,7 +452,7 @@ function getDefaultAiProvider() {
 }
 
 function buildAvailableProviders() {
-  const providers = [{ id: "local", label: "本地规则" }];
+  const providers = [{ id: "local", label: "基础分析" }];
   if (ANTHROPIC_AUTH_TOKEN && ANTHROPIC_BASE_URL) {
     providers.unshift({ id: "anthropic", label: "Anthropic" });
   }

@@ -69,7 +69,7 @@ let serverConfig = {
   hasAnthropicKey: false,
   anthropicModel: "",
   defaultAiProvider: "local",
-  availableProviders: [{ id: "local", label: "本地规则" }]
+  availableProviders: [{ id: "local", label: "基础分析" }]
 };
 let appState = loadState();
 
@@ -79,13 +79,14 @@ async function boot() {
   bindEvents();
   registerServiceWorker();
   await Promise.all([loadServerConfig(), loadMovers(), loadIndices()]);
+  syncRankingsFromWatchlist();
   renderAll();
 }
 
 function bindEvents() {
   els.watchlistSearchForm.addEventListener("submit", handleWatchlistSearch);
-  els.rankingForm.addEventListener("submit", handleRankingSubmit);
-  els.fillRankingSampleBtn.addEventListener("click", fillRankingSample);
+  if (els.rankingForm) els.rankingForm.addEventListener("submit", handleRankingSubmit);
+  if (els.fillRankingSampleBtn) els.fillRankingSampleBtn.addEventListener("click", fillRankingSample);
   if (els.stockForm) els.stockForm.addEventListener("submit", handleAnalyze);
   if (els.fillSampleBtn) els.fillSampleBtn.addEventListener("click", fillSample);
   if (els.fetchQuoteBtn) els.fetchQuoteBtn.addEventListener("click", handleFetchQuote);
@@ -100,12 +101,12 @@ function bindEvents() {
   els.portfolioList.addEventListener("click", handlePortfolioAction);
   els.tradeList.addEventListener("click", handleTradeAction);
   els.bottomNav.addEventListener("click", handleTabChange);
-  els.ranking5List.addEventListener("click", handleOpenFromRanking);
-  els.ranking10List.addEventListener("click", handleOpenFromRanking);
-  els.futureTop5.addEventListener("click", handleOpenFromRanking);
-  els.futureTop10.addEventListener("click", handleOpenFromRanking);
-  els.marketTopGainers.addEventListener("click", handleOpenFromRanking);
-  els.marketTopLosers.addEventListener("click", handleOpenFromRanking);
+  if (els.ranking5List) els.ranking5List.addEventListener("click", handleOpenFromRanking);
+  if (els.ranking10List) els.ranking10List.addEventListener("click", handleOpenFromRanking);
+  if (els.futureTop5) els.futureTop5.addEventListener("click", handleOpenFromRanking);
+  if (els.futureTop10) els.futureTop10.addEventListener("click", handleOpenFromRanking);
+  if (els.marketTopGainers) els.marketTopGainers.addEventListener("click", handleOpenFromRanking);
+  if (els.marketTopLosers) els.marketTopLosers.addEventListener("click", handleOpenFromRanking);
   window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   els.installBtn.addEventListener("click", installPwa);
 }
@@ -119,9 +120,18 @@ function handleTabChange(event) {
 }
 
 function handleOpenFromRanking(event) {
-  const card = event.target.closest("[data-open-code]");
-  if (!card) return;
-  openStockFromList(card.dataset.openCode, card.dataset.openName || "");
+  const button = event.target.closest("[data-rank-action]");
+  if (!button) return;
+  const code = button.dataset.openCode;
+  const name = button.dataset.openName || "";
+  if (!code) return;
+
+  if (button.dataset.rankAction === "view") {
+    openStockFromList(code, name);
+    return;
+  }
+
+  addStockFromRanking(code, name);
 }
 
 function loadState() {
@@ -199,7 +209,7 @@ async function loadServerConfig() {
       hasAnthropicKey: false,
       anthropicModel: "",
       defaultAiProvider: "local",
-      availableProviders: [{ id: "local", label: "本地规则" }]
+      availableProviders: [{ id: "local", label: "基础分析" }]
     };
   }
 }
@@ -314,6 +324,7 @@ async function addToWatchlist(code, name) {
   if (index >= 0) appState.watchlist[index] = watchItem;
   else appState.watchlist.unshift(watchItem);
   appState.expandedWatchCode = code;
+  syncRankingsFromWatchlist();
   saveState();
   renderWatchlist();
 }
@@ -377,6 +388,7 @@ function handleWatchlistAction(event) {
   if (button.dataset.action === "remove-watch") {
     appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
     if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
+    syncRankingsFromWatchlist();
   }
 
   if (button.dataset.action === "refresh-watch") {
@@ -434,6 +446,25 @@ async function openStockFromList(code, name) {
     els.watchlistMessage.textContent = `${name || code} 已展开详细预测。`;
   } catch (error) {
     els.watchlistMessage.textContent = `打开失败：${error.message}`;
+  }
+}
+
+async function addStockFromRanking(code, name) {
+  const exists = appState.watchlist.some((item) => item.code === code);
+  if (exists) {
+    els.watchlistMessage.textContent = `${name || code} 已经在自选里了。`;
+    renderMovers();
+    renderRankings();
+    return;
+  }
+
+  try {
+    await addToWatchlist(code, name);
+    els.watchlistMessage.textContent = `${name || code} 已加入自选，可在“自选预测”里查看详情。`;
+    renderMovers();
+    renderRankings();
+  } catch (error) {
+    els.watchlistMessage.textContent = `加入自选失败：${error.message}`;
   }
 }
 
@@ -620,7 +651,7 @@ async function handleRemoteAnalyze() {
     persistAnalysis(analysis);
   } catch (error) {
     persistAnalysis(buildLocalAnalysis(stock, "local-fallback"));
-    renderNotice(`AI 分析失败，已回退到本地规则：${error.message}`);
+    renderNotice(`AI 分析失败，已回退到基础分析：${error.message}`);
   } finally {
     setBusyState(els.remoteAiBtn, false, "调用 AI");
   }
@@ -1231,6 +1262,7 @@ function renderWatchlist() {
       const quickRows = buildWatchQuickRows(item);
       return `
         <article class="watch-card">
+          <button class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" aria-expanded="${expanded ? "true" : "false"}">
           <div class="watch-quote-row">
             <div class="watch-identity">
               <div class="item-title">${item.name}</div>
@@ -1240,8 +1272,10 @@ function renderWatchlist() {
               <strong>${formatMoney(item.currentPrice)}</strong>
               <span class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</span>
               <small class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSignedMoney(todayMove)}</small>
+              <em class="watch-toggle-hint">${expanded ? "收起详情" : "展开详情"}</em>
             </div>
           </div>
+          </button>
           <div class="watch-market-board">
             <div class="watch-stat-card">
               <span class="watch-stat-label">真实 5 日</span>
@@ -1381,11 +1415,13 @@ function buildWatchComparison(item) {
     .map(
       (prediction) => `
         <div class="compare-row">
-          <span>${renderProviderName(prediction.provider)}</span>
-          <strong class="${mapTrendClass(prediction.direction)}">${prediction.direction}</strong>
-          <span>${prediction.confidence}%</span>
-          <span>${formatMoney(prediction.targetPrice)}</span>
-          <span class="${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
+          <span class="compare-provider">${renderProviderName(prediction.provider)}</span>
+          <strong class="compare-direction ${mapTrendClass(prediction.direction)}">${prediction.direction}</strong>
+          <div class="compare-meta">
+            <span class="compare-confidence">置信 ${prediction.confidence}%</span>
+            <span class="compare-target">目标 ${formatMoney(prediction.targetPrice)}</span>
+          </div>
+          <span class="compare-gap ${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
             round2(((prediction.targetPrice - item.currentPrice) / item.currentPrice) * 100)
           )}%</span>
         </div>
@@ -1454,7 +1490,7 @@ function renderRankings() {
   renderRankingList(els.ranking10List, appState.rankings?.horizon10 || [], "predicted10d", "近 10 天");
   renderRankingList(els.futureTop5, appState.rankings?.horizon5 || [], "predicted5d", "未来 5 天");
   renderRankingList(els.futureTop10, appState.rankings?.horizon10 || [], "predicted10d", "未来 10 天");
-  if (appState.rankings?.updatedAt) {
+  if (els.rankingSummary && appState.rankings?.updatedAt) {
     els.rankingSummary.textContent = `最近一次排序时间：${formatDateTime(appState.rankings.updatedAt)}`;
   }
 }
@@ -1474,30 +1510,41 @@ function renderMarketMoverList(container, list, label) {
   container.className = "list-stack";
   container.innerHTML = list
     .map(
-      (item, index) => `
-        <article class="rank-item rank-clickable" data-open-code="${item.code}" data-open-name="${item.name}">
+      (item, index) => {
+        const inWatchlist = appState.watchlist.some((entry) => entry.code === item.code);
+        return `
+        <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
-          <div class="rank-main">
-            <div class="item-head">
-              <div>
+          <div class="rank-main rank-main-compact">
+            <div class="rank-topline">
+              <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
                 <div class="item-subtitle">${item.code}</div>
               </div>
-              <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
+              <div class="rank-side">
+                <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
+                <span class="rank-price">现价 ${formatMoney(item.currentPrice)}</span>
+              </div>
             </div>
-            <div class="tag-row">
-              <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
-              <span class="tag">成交额 ${formatLargeNumber(item.amount)}</span>
-              <span class="tag">点开看详情</span>
+            <div class="rank-bottomline">
+              <span class="rank-inline-note">成交额 ${formatLargeNumber(item.amount)}</span>
+              <button
+                class="${inWatchlist ? "ghost-btn" : "primary-btn"} rank-action-btn"
+                data-rank-action="${inWatchlist ? "view" : "add"}"
+                data-open-code="${item.code}"
+                data-open-name="${item.name}"
+              >${inWatchlist ? "查看自选" : "加入自选"}</button>
             </div>
           </div>
         </article>
-      `
+      `;
+      }
     )
     .join("");
 }
 
 function renderRankingList(container, list, key, label) {
+  if (!container) return;
   if (!list.length) {
     container.className = "list-stack empty-state";
     container.innerHTML = `<p>还没有生成${label}预测榜单。</p>`;
@@ -1507,29 +1554,69 @@ function renderRankingList(container, list, key, label) {
   container.className = "list-stack";
   container.innerHTML = list
     .map(
-      (item, index) => `
-        <article class="rank-item rank-clickable" data-open-code="${item.code}" data-open-name="${item.name}">
+      (item, index) => {
+        const inWatchlist = appState.watchlist.some((entry) => entry.code === item.code);
+        return `
+        <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
-          <div class="rank-main">
-            <div class="item-head">
-              <div>
+          <div class="rank-main rank-main-compact">
+            <div class="rank-topline">
+              <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code}</div>
+                <div class="item-subtitle">${item.code} · ${item.direction} · 置信 ${item.confidence}%</div>
               </div>
-              <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
+              <div class="rank-side">
+                <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
+                <span class="rank-price">现价 ${formatMoney(item.currentPrice)}</span>
+              </div>
             </div>
-            <div class="tag-row">
-              <span class="tag ${mapTrendClass(item.direction)}">${item.direction}</span>
-              <span class="tag">置信度 ${item.confidence}%</span>
-              <span class="tag ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
-              <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
-              <span class="tag">点开看详情</span>
+            <div class="rank-bottomline">
+              <span class="rank-inline-note ${mapRiskClass(item.riskLevel)}">风险 ${item.riskLevel}</span>
+              <button
+                class="${inWatchlist ? "ghost-btn" : "primary-btn"} rank-action-btn"
+                data-rank-action="${inWatchlist ? "view" : "add"}"
+                data-open-code="${item.code}"
+                data-open-name="${item.name}"
+              >${inWatchlist ? "查看自选" : "加入自选"}</button>
             </div>
           </div>
         </article>
-      `
+      `;
+      }
     )
     .join("");
+}
+
+function syncRankingsFromWatchlist() {
+  const items = (appState.watchlist || [])
+    .map((item) => {
+      const currentPrice = Number(item.currentPrice);
+      if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
+
+      const forecast = buildForecastPoints(currentPrice, item.predictions || []);
+      const projected5 = forecast.find((entry) => entry.label === "5天")?.price ?? currentPrice;
+      const projected10 = forecast.find((entry) => entry.label === "10天")?.price ?? currentPrice;
+      const topPrediction = item.predictions?.[0];
+
+      return {
+        code: item.code,
+        name: item.name,
+        currentPrice,
+        provider: topPrediction?.provider || "local",
+        direction: topPrediction?.direction || "震荡",
+        confidence: topPrediction?.confidence || 50,
+        riskLevel: topPrediction?.riskLevel || "中",
+        predicted5d: round2(((projected5 - currentPrice) / currentPrice) * 100),
+        predicted10d: round2(((projected10 - currentPrice) / currentPrice) * 100)
+      };
+    })
+    .filter(Boolean);
+
+  appState.rankings = {
+    horizon5: sortRanking(items, "predicted5d"),
+    horizon10: sortRanking(items, "predicted10d"),
+    updatedAt: items.length ? new Date().toISOString() : null
+  };
 }
 
 function renderUserPanel() {
@@ -1558,7 +1645,7 @@ function renderUserPanel() {
     </article>
   `;
 
-  const providers = (serverConfig.availableProviders || []).map((item) => item.label).join("、") || "本地规则";
+  const providers = (serverConfig.availableProviders || []).map((item) => item.label).join("、") || "基础分析";
   const selectedProvider =
     appState.settings.aiProvider === "auto"
       ? `自动选择（当前默认 ${renderProviderName(serverConfig.defaultAiProvider)}）`
@@ -2468,7 +2555,7 @@ function renderProviderName(provider) {
   if (provider === "custom") {
     return "自定义接口";
   }
-  return "本地规则";
+  return "基础分析";
 }
 
 function getPreviousAnalysis(current) {
