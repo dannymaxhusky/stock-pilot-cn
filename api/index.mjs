@@ -165,7 +165,7 @@ async function fetchMarketMovers(type) {
   const url = new URL("https://push2.eastmoney.com/api/qt/clist/get");
   url.searchParams.set("pn", "1");
   url.searchParams.set("pz", "10");
-  url.searchParams.set("po", type === "losers" ? "1" : "0");
+  url.searchParams.set("po", type === "losers" ? "0" : "1");
   url.searchParams.set("np", "1");
   url.searchParams.set("ut", "bd1d9ddb04089700cf9c27f6f7426281");
   url.searchParams.set("fltt", "2");

@@ -1839,21 +1839,19 @@ function renderMarketMoverList(container, list, label) {
         <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
           <div class="rank-main rank-main-compact">
-            <div class="rank-topline">
-              <div class="rank-title-wrap">
-                <div class="item-title">${item.name}</div>
-              </div>
-              <div class="rank-side rank-side-compact">
-                <strong class="${displayChange >= 0 ? "trend-up" : "trend-down"}">${formatSigned(displayChange)}%</strong>
-                <button
-                  class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
-                  data-rank-action="${inWatchlist ? "view" : "add"}"
-                  data-open-code="${item.code}"
-                  data-open-name="${item.name}"
-                  aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
-                  title="${inWatchlist ? "查看自选" : "加入自选"}"
-                >+</button>
-              </div>
+            <div class="rank-title-wrap">
+              <div class="item-title">${item.name}</div>
+            </div>
+            <div class="rank-side rank-side-compact">
+              <strong class="${displayChange >= 0 ? "trend-up" : "trend-down"}">${formatSigned(displayChange)}%</strong>
+              <button
+                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
+                data-rank-action="${inWatchlist ? "view" : "add"}"
+                data-open-code="${item.code}"
+                data-open-name="${item.name}"
+                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                title="${inWatchlist ? "查看自选" : "加入自选"}"
+              >+</button>
             </div>
           </div>
         </article>
@@ -1880,21 +1878,19 @@ function renderRankingList(container, list, key, label) {
         <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
           <div class="rank-main rank-main-compact">
-            <div class="rank-topline">
-              <div class="rank-title-wrap">
-                <div class="item-title">${item.name}</div>
-              </div>
-              <div class="rank-side rank-side-compact">
-                <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
-                <button
-                  class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
-                  data-rank-action="${inWatchlist ? "view" : "add"}"
-                  data-open-code="${item.code}"
-                  data-open-name="${item.name}"
-                  aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
-                  title="${inWatchlist ? "查看自选" : "加入自选"}"
-                >+</button>
-              </div>
+            <div class="rank-title-wrap">
+              <div class="item-title">${item.name}</div>
+            </div>
+            <div class="rank-side rank-side-compact">
+              <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
+              <button
+                class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
+                data-rank-action="${inWatchlist ? "view" : "add"}"
+                data-open-code="${item.code}"
+                data-open-name="${item.name}"
+                aria-label="${inWatchlist ? "查看自选" : "加入自选"}"
+                title="${inWatchlist ? "查看自选" : "加入自选"}"
+              >+</button>
             </div>
           </div>
         </article>
