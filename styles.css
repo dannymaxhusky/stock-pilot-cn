@@ -452,26 +452,95 @@ h2 {
   background: linear-gradient(180deg, rgba(107, 31, 44, 0.28), rgba(36, 16, 23, 0.62));
 }
 
+.banner-warning {
+  border-color: rgba(255, 184, 71, 0.22);
+  background: linear-gradient(180deg, rgba(92, 67, 21, 0.22), rgba(41, 28, 11, 0.56));
+  color: #ffe0a3;
+}
+
 .ranking-grid {
   display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .ai-scan-panel {
   grid-column: 1 / -1;
 }
 
+.panel-fold {
+  overflow: hidden;
+}
+
+.panel-fold summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.panel-fold summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold-head {
+  align-items: center;
+}
+
+.fold-arrow {
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid #a7bfdc;
+  border-bottom: 2px solid #a7bfdc;
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.panel-fold[open] .fold-arrow {
+  transform: rotate(-135deg);
+}
+
+.dual-ranking-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mini-ranking-block {
+  display: grid;
+  gap: 6px;
+}
+
+.mini-ranking-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+}
+
 .ranking-panel {
   border-radius: var(--radius-md);
   background: linear-gradient(180deg, rgba(18, 31, 48, 0.92), rgba(13, 24, 37, 0.92));
   border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 14px;
+  padding: 11px 11px 10px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .compact-head {
-  margin-bottom: 10px;
+  margin-bottom: 7px;
+}
+
+.ranking-panel .panel-head {
+  margin-bottom: 8px;
+}
+
+.ranking-panel h2 {
+  font-size: 1.14rem;
+  line-height: 1.15;
+}
+
+.ranking-panel .section-kicker {
+  margin-bottom: 2px;
 }
 
 .panel-report {
@@ -806,6 +875,12 @@ textarea {
   gap: 10px;
 }
 
+.market-mover-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .list-item {
   padding: 13px;
 }
@@ -820,6 +895,12 @@ textarea {
   background: linear-gradient(180deg, rgba(19, 32, 49, 0.96), rgba(12, 23, 36, 0.96));
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.market-mover-grid .rank-item {
+  grid-template-columns: 30px 1fr;
+  gap: 6px;
+  padding: 8px 8px 7px;
 }
 
 .rank-clickable {
@@ -843,9 +924,19 @@ textarea {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.24);
 }
 
+.market-mover-grid .rank-no {
+  width: 28px;
+  height: 28px;
+  font-size: 0.8rem;
+}
+
 .rank-main .item-title {
   font-size: 0.95rem;
   line-height: 1.1;
+}
+
+.market-mover-grid .rank-main .item-title {
+  font-size: 0.84rem;
 }
 
 .rank-main-compact {
@@ -871,6 +962,10 @@ textarea {
   font-size: 0.74rem;
 }
 
+.market-mover-grid .rank-title-wrap .item-subtitle {
+  font-size: 0.68rem;
+}
+
 .rank-side {
   display: grid;
   justify-items: end;
@@ -880,6 +975,10 @@ textarea {
 .rank-price {
   font-size: 0.7rem;
   color: var(--muted);
+}
+
+.market-mover-grid .rank-side strong {
+  font-size: 0.88rem;
 }
 
 .rank-bottomline {
@@ -892,6 +991,11 @@ textarea {
 .rank-inline-note {
   font-size: 0.7rem;
   color: var(--muted);
+}
+
+.market-mover-grid .rank-inline-note {
+  font-size: 0.64rem;
+  white-space: nowrap;
 }
 
 .rank-bottomline-compact {
@@ -917,6 +1021,12 @@ textarea {
   background: linear-gradient(180deg, rgba(40, 56, 78, 0.96), rgba(24, 37, 53, 0.96));
   border-color: rgba(255, 255, 255, 0.08);
   color: #dce8f8;
+}
+
+.market-mover-grid .rank-icon-btn {
+  width: 24px;
+  height: 24px;
+  font-size: 0.94rem;
 }
 
 .watch-card,
@@ -1634,6 +1744,27 @@ textarea {
 @media (max-width: 480px) {
   .scan-form {
     gap: 8px;
+  }
+
+  .dual-ranking-grid {
+    gap: 8px;
+  }
+
+  .ranking-grid {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .ranking-panel {
+    padding: 10px 10px 9px;
+  }
+
+  .ranking-panel h2 {
+    font-size: 1.02rem;
+  }
+
+  .ranking-panel .panel-head {
+    margin-bottom: 6px;
   }
 
   .hero-card {

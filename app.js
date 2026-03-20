@@ -693,8 +693,9 @@ async function handleAiScanSubmit(event) {
     };
     saveState();
     renderRankings();
+    scheduleCloudSync();
     setBusyState(button, true, "查询完成", 100);
-    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内完成扫描。OpenAI 分析 ${openaiValid.length} 只，Anthropic 分析 ${anthropicValid.length} 只。`;
+    els.rankingSummary.textContent = `已在 ${formatMoney(minPrice)} 到 ${formatMoney(maxPrice)} 区间内完成扫描。OpenAI 分析 ${openaiValid.length} 只，Anthropic 分析 ${anthropicValid.length} 只。结果会跟随当前用户信息一起保存，之后不需要重复查询。`;
   } catch (error) {
     els.rankingSummary.textContent = `生成排序失败：${error.message}`;
   } finally {
@@ -1827,7 +1828,7 @@ function renderMarketMoverList(container, list, label) {
     return;
   }
 
-  container.className = "list-stack";
+  container.className = "market-mover-grid";
   container.innerHTML = list
     .map(
       (item, index) => {
@@ -1839,16 +1840,14 @@ function renderMarketMoverList(container, list, label) {
             <div class="rank-topline">
               <div class="rank-title-wrap">
                 <div class="item-title">${item.name}</div>
-                <div class="item-subtitle">${item.code} · 现价 ${formatMoney(item.currentPrice)} · 成交额 ${formatLargeNumber(
-                  item.amount
-                )}</div>
+                <div class="item-subtitle">${item.code} · 现价 ${formatMoney(item.currentPrice)}</div>
               </div>
               <div class="rank-side">
                 <strong class="${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</strong>
               </div>
             </div>
             <div class="rank-bottomline rank-bottomline-compact">
-              <span class="rank-inline-note"></span>
+              <span class="rank-inline-note">成交 ${formatLargeNumber(item.amount)}</span>
               <button
                 class="${inWatchlist ? "rank-icon-btn is-view" : "rank-icon-btn"}"
                 data-rank-action="${inWatchlist ? "view" : "add"}"

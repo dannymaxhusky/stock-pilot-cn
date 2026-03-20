@@ -80,35 +80,38 @@
             <div class="panel-chip">热榜</div>
           </div>
           <div class="ranking-grid">
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
+            <details class="ranking-panel panel-fold" open>
+              <summary class="panel-head compact-head fold-head">
                 <div>
                   <p class="section-kicker">真实市场</p>
                   <h2>真实市场涨幅前十</h2>
                 </div>
-              </div>
+                <span class="fold-arrow" aria-hidden="true"></span>
+              </summary>
               <div id="marketTopGainers" class="list-stack empty-state">
                 <p>正在等待市场榜单数据。</p>
               </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
+            </details>
+            <details class="ranking-panel panel-fold" open>
+              <summary class="panel-head compact-head fold-head">
                 <div>
                   <p class="section-kicker">真实市场</p>
                   <h2>真实市场跌幅前十</h2>
                 </div>
-              </div>
+                <span class="fold-arrow" aria-hidden="true"></span>
+              </summary>
               <div id="marketTopLosers" class="list-stack empty-state">
                 <p>正在等待市场榜单数据。</p>
               </div>
-            </div>
-            <div class="ranking-panel ai-scan-panel">
-              <div class="panel-head compact-head">
+            </details>
+            <details class="ranking-panel ai-scan-panel panel-fold" open>
+              <summary class="panel-head compact-head fold-head">
                 <div>
                   <p class="section-kicker">AI 预测</p>
                   <h2>AI 筛选条件</h2>
                 </div>
-              </div>
+                <span class="fold-arrow" aria-hidden="true"></span>
+              </summary>
               <form id="aiScanForm" class="scan-form">
                 <label>
                   <span>最低单价</span>
@@ -125,51 +128,64 @@
               <div id="rankingSummary" class="simple-banner">
                 这个价格区间只作用于下面两个 AI 榜单。上面的真实市场涨跌前十始终直接显示市场数据，不受这个筛选影响。
               </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
+              <div class="simple-banner banner-warning">
+                每次查询都会消耗较多模型费用，建议不要频繁刷新。同一位用户保存后，可恢复最近一次 AI 查询结果。
+              </div>
+            </details>
+            <details class="ranking-panel panel-fold" open>
+              <summary class="panel-head compact-head fold-head">
                 <div>
-                  <p class="section-kicker">OpenAI</p>
+                  <p class="section-kicker">AI 预测</p>
                   <h2>5天前十</h2>
                 </div>
-              </div>
-              <div id="futureTop5" class="list-stack empty-state">
-                <p>设定价格范围并点击查询后，这里会出现未来 5 天前十。</p>
-              </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <p class="section-kicker">Anthropic</p>
-                  <h2>5天前十</h2>
+                <span class="fold-arrow" aria-hidden="true"></span>
+              </summary>
+              <div class="dual-ranking-grid">
+                <div class="mini-ranking-block">
+                  <div class="mini-ranking-head">
+                    <span class="section-kicker">OpenAI</span>
+                  </div>
+                  <div id="futureTop5" class="list-stack empty-state">
+                    <p>设定价格范围并点击查询后，这里会出现未来 5 天前十。</p>
+                  </div>
+                </div>
+                <div class="mini-ranking-block">
+                  <div class="mini-ranking-head">
+                    <span class="section-kicker">Anthropic</span>
+                  </div>
+                  <div id="futureTop10" class="list-stack empty-state">
+                    <p>设定价格范围并点击查询后，这里会出现未来 5 天前十。</p>
+                  </div>
                 </div>
               </div>
-              <div id="futureTop10" class="list-stack empty-state">
-                <p>设定价格范围并点击查询后，这里会出现未来 5 天前十。</p>
-              </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
+            </details>
+            <details class="ranking-panel panel-fold" open>
+              <summary class="panel-head compact-head fold-head">
                 <div>
-                  <p class="section-kicker">OpenAI</p>
+                  <p class="section-kicker">AI 预测</p>
                   <h2>10天前十</h2>
                 </div>
-              </div>
-              <div id="openaiTop10" class="list-stack empty-state">
-                <p>设定价格范围并点击查询后，这里会出现未来 10 天前十。</p>
-              </div>
-            </div>
-            <div class="ranking-panel">
-              <div class="panel-head compact-head">
-                <div>
-                  <p class="section-kicker">Anthropic</p>
-                  <h2>10天前十</h2>
+                <span class="fold-arrow" aria-hidden="true"></span>
+              </summary>
+              <div class="dual-ranking-grid">
+                <div class="mini-ranking-block">
+                  <div class="mini-ranking-head">
+                    <span class="section-kicker">OpenAI</span>
+                  </div>
+                  <div id="openaiTop10" class="list-stack empty-state">
+                    <p>设定价格范围并点击查询后，这里会出现未来 10 天前十。</p>
+                  </div>
+                </div>
+                <div class="mini-ranking-block">
+                  <div class="mini-ranking-head">
+                    <span class="section-kicker">Anthropic</span>
+                  </div>
+                  <div id="anthropicTop10" class="list-stack empty-state">
+                    <p>设定价格范围并点击查询后，这里会出现未来 10 天前十。</p>
+                  </div>
                 </div>
               </div>
-              <div id="anthropicTop10" class="list-stack empty-state">
-                <p>设定价格范围并点击查询后，这里会出现未来 10 天前十。</p>
-              </div>
-            </div>
+            </details>
           </div>
         </section>
 
