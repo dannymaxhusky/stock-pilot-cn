@@ -898,9 +898,11 @@ textarea {
 }
 
 .market-mover-grid .rank-item {
-  grid-template-columns: 30px 1fr;
-  gap: 6px;
-  padding: 8px 8px 7px;
+  position: relative;
+  grid-template-columns: 1fr;
+  gap: 0;
+  padding: 8px 34px 8px 30px;
+  min-height: 56px;
 }
 
 .rank-clickable {
@@ -925,6 +927,10 @@ textarea {
 }
 
 .market-mover-grid .rank-no {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 28px;
   height: 28px;
   font-size: 0.8rem;
@@ -936,7 +942,10 @@ textarea {
 }
 
 .market-mover-grid .rank-main .item-title {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rank-main-compact {
@@ -945,7 +954,7 @@ textarea {
 }
 
 .market-mover-grid .rank-main-compact {
-  gap: 0;
+  gap: 4px;
 }
 
 .rank-topline {
@@ -971,9 +980,7 @@ textarea {
 }
 
 .market-mover-grid .rank-title-wrap {
-  display: flex;
-  align-items: center;
-  min-height: 24px;
+  min-height: 18px;
 }
 
 .rank-side {
@@ -988,14 +995,14 @@ textarea {
 }
 
 .market-mover-grid .rank-side strong {
-  font-size: 0.88rem;
+  font-size: 0.86rem;
 }
 
 .rank-side-compact {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .rank-bottomline {
@@ -1047,6 +1054,10 @@ textarea {
 }
 
 .market-mover-grid .rank-icon-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 24px;
   height: 24px;
   font-size: 0.94rem;
