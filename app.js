@@ -1841,6 +1841,7 @@ function renderMarketMoverList(container, list, label) {
           <div class="rank-main rank-main-compact">
             <div class="rank-title-wrap">
               <div class="item-title">${item.name}</div>
+              <div class="item-subtitle">${item.code || ""}</div>
             </div>
             <div class="rank-side rank-side-compact">
               <strong class="${displayChange >= 0 ? "trend-up" : "trend-down"}">${formatSigned(displayChange)}%</strong>
@@ -1874,12 +1875,17 @@ function renderRankingList(container, list, key, label) {
     .map(
       (item, index) => {
         const inWatchlist = appState.watchlist.some((entry) => entry.code === item.code);
+        const riskLevel = item.riskLevel || "中";
         return `
         <article class="rank-item">
           <div class="rank-no">${index + 1}</div>
           <div class="rank-main rank-main-compact">
             <div class="rank-title-wrap">
               <div class="item-title">${item.name}</div>
+              <div class="item-subtitle">
+                <span>${item.code || ""}</span>
+                <span class="tag ${mapRiskClass(riskLevel)}">风险 ${riskLevel}</span>
+              </div>
             </div>
             <div class="rank-side rank-side-compact">
               <strong class="${item[key] >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item[key])}%</strong>
