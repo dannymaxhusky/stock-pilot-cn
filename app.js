@@ -51,6 +51,7 @@ const els = {
   apiToken: document.querySelector("#apiToken"),
   settingsForm: document.querySelector("#settingsForm"),
   profileForm: document.querySelector("#profileForm"),
+  profileSubmitBtn: document.querySelector("#profileSubmitBtn"),
   profileName: document.querySelector("#profileName"),
   profileCity: document.querySelector("#profileCity"),
   profileRisk: document.querySelector("#profileRisk"),
@@ -75,6 +76,12 @@ let serverConfig = {
 };
 let appState = loadState();
 let cloudSyncTimer = null;
+let uiState = {
+  cloudSync: {
+    message: "",
+    tone: "info"
+  }
+};
 
 boot();
 
@@ -243,6 +250,9 @@ function handleSaveSettings(event) {
 
 function handleSaveProfile(event) {
   event.preventDefault();
+  const submitButton = event.submitter || els.profileSubmitBtn;
+  setBusyState(submitButton, true, "保存中...", 12);
+  setCloudSyncStatus("正在保存用户信息并检查云端数据...", "loading");
   appState.profile.name = els.profileName.value.trim() || "股友";
   appState.profile.city = els.profileCity.value.trim();
   appState.profile.riskPreference = els.profileRisk.value || "稳健";
@@ -251,11 +261,23 @@ function handleSaveProfile(event) {
   renderAll();
   const hadLocalData = hasMeaningfulData();
   void (async () => {
-    if (!hadLocalData) {
-      await tryRestoreCloudProfile("notice");
+    try {
+      if (!hadLocalData) {
+        setBusyState(submitButton, true, "正在恢复云端数据...", 45);
+        await tryRestoreCloudProfile("notice");
+      }
+      setBusyState(submitButton, true, "正在同步到云端...", 78);
+      await syncProfileToCloud("notice");
+      setBusyState(submitButton, true, "保存成功", 100);
+      setCloudSyncStatus("用户信息已保存，云端同步已完成。", "success");
+      renderNotice("用户信息已保存，模拟交易参数已更新。");
+    } catch (error) {
+      setCloudSyncStatus(`保存失败：${error.message}`, "error");
+    } finally {
+      setTimeout(() => {
+        setBusyState(submitButton, false, "保存用户信息");
+      }, 320);
     }
-    await syncProfileToCloud("notice");
-    renderNotice("用户信息已保存，模拟交易参数已更新。");
   })();
 }
 
@@ -1274,7 +1296,7 @@ async function syncProfileToCloud(mode = "silent") {
   const identity = getCloudIdentity();
   if (!identity) {
     if (mode === "notice") {
-      els.cloudSyncStatus.textContent = "请先填写称呼和城市，再启用云端恢复。";
+      setCloudSyncStatus("请先填写称呼和城市，再启用云端恢复。", "error");
     }
     return;
   }
@@ -1292,8 +1314,9 @@ async function syncProfileToCloud(mode = "silent") {
     renderUserPanel();
   } catch (error) {
     if (mode === "notice") {
-      els.cloudSyncStatus.textContent = `云端保存失败：${error.message}`;
+      setCloudSyncStatus(`云端保存失败：${error.message}`, "error");
     }
+    throw error;
   }
 }
 
@@ -1307,7 +1330,7 @@ async function tryRestoreCloudProfile(mode = "silent") {
     );
     if (!payload?.found || !payload.snapshot) {
       if (mode === "notice") {
-        els.cloudSyncStatus.textContent = "云端没有找到这位用户的历史数据，后续保存后会自动建立。";
+        setCloudSyncStatus("云端没有找到这位用户的历史数据，后续保存后会自动建立。", "info");
       }
       return;
     }
@@ -1319,13 +1342,38 @@ async function tryRestoreCloudProfile(mode = "silent") {
     saveState();
     renderAll();
     if (mode === "notice") {
+      setCloudSyncStatus("已恢复这位用户的云端数据，并同步到当前设备。", "success");
       renderNotice(`已恢复 ${identity.name} 的自选股和模拟交易数据。`);
     }
   } catch (error) {
     if (mode === "notice") {
-      els.cloudSyncStatus.textContent = `云端恢复失败：${error.message}`;
+      setCloudSyncStatus(`云端恢复失败：${error.message}`, "error");
     }
+    throw error;
   }
+}
+
+function setCloudSyncStatus(message, tone = "info") {
+  uiState.cloudSync = {
+    message,
+    tone
+  };
+  renderCloudSyncStatus();
+}
+
+function renderCloudSyncStatus() {
+  if (!els.cloudSyncStatus) return;
+  const syncLabel = appState.profile?.lastCloudSyncAt
+    ? `上次云端保存：${formatDateTime(appState.profile.lastCloudSyncAt)}`
+    : "还没有同步到云端";
+  const activeMessage =
+    uiState.cloudSync.message ||
+    `使用“称呼 + 城市”可恢复同一位用户的自选股和模拟交易数据。${syncLabel}`;
+  els.cloudSyncStatus.className = `simple-banner banner-${uiState.cloudSync.tone || "info"}`;
+  els.cloudSyncStatus.innerHTML = `
+    <strong>云端恢复：</strong>
+    ${activeMessage}
+  `;
 }
 
 function getPortableState() {
@@ -1574,17 +1622,21 @@ function buildWatchComparison(item) {
   const rows = (item.predictions || [])
     .map(
       (prediction) => `
-        <div class="compare-row">
-          <span class="compare-provider">${renderProviderName(prediction.provider)}</span>
-          <strong class="compare-direction ${mapTrendClass(prediction.direction)}">${prediction.direction}</strong>
-          <div class="compare-meta">
+        <article class="compare-mini-card">
+          <div class="compare-mini-top">
+            <span class="compare-provider">${renderProviderName(prediction.provider)}</span>
+            <strong class="compare-gap ${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
+              round2(((prediction.targetPrice - item.currentPrice) / item.currentPrice) * 100)
+            )}%</strong>
+          </div>
+          <div class="compare-mini-main">
+            <strong class="compare-direction ${mapTrendClass(prediction.direction)}">${prediction.direction}</strong>
+          </div>
+          <div class="compare-mini-meta">
             <span class="compare-confidence">置信 ${prediction.confidence}%</span>
             <span class="compare-target">目标 ${formatMoney(prediction.targetPrice)}</span>
           </div>
-          <span class="compare-gap ${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
-            round2(((prediction.targetPrice - item.currentPrice) / item.currentPrice) * 100)
-          )}%</span>
-        </div>
+        </article>
       `
     )
     .join("");
@@ -1608,14 +1660,7 @@ function buildWatchComparison(item) {
           <strong class="${latest5 >= 0 ? "trend-up" : "trend-down"}">${formatSigned(latest5)}%</strong>
         </div>
       </div>
-      <div class="compare-header compare-row">
-        <span>模型</span>
-        <span>方向</span>
-        <span>置信度</span>
-        <span>目标价</span>
-        <span>目标空间</span>
-      </div>
-      <div class="compare-table">
+      <div class="compare-card-grid">
         ${rows}
       </div>
     </div>
@@ -1816,13 +1861,7 @@ function renderUserPanel() {
     当前已启用的预测来源有 ${providers}。用户在股票详情里会直接看到来源名称，不会显示底层模型代号。
   `;
 
-  const syncLabel = appState.profile?.lastCloudSyncAt
-    ? `上次云端保存：${formatDateTime(appState.profile.lastCloudSyncAt)}`
-    : "还没有同步到云端";
-  els.cloudSyncStatus.innerHTML = `
-    <strong>云端恢复：</strong>
-    使用“称呼 + 城市”可恢复同一位用户的自选股和模拟交易数据。${syncLabel}
-  `;
+  renderCloudSyncStatus();
 }
 
 function renderWallet() {
