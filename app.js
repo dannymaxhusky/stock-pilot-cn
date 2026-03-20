@@ -90,9 +90,11 @@ function bindEvents() {
   if (els.fetchQuoteBtn) els.fetchQuoteBtn.addEventListener("click", handleFetchQuote);
   if (els.remoteAiBtn) els.remoteAiBtn.addEventListener("click", handleRemoteAnalyze);
   els.resetDataBtn.addEventListener("click", resetPortfolioOnly);
-  els.settingsForm.addEventListener("submit", handleSaveSettings);
+  if (els.settingsForm) els.settingsForm.addEventListener("submit", handleSaveSettings);
   els.profileForm.addEventListener("submit", handleSaveProfile);
   els.watchlistList.addEventListener("click", handleWatchlistAction);
+  els.watchlistList.addEventListener("click", handleChartTooltipToggle);
+  els.watchlistList.addEventListener("pointerleave", handleChartTooltipLeave);
   els.cartList.addEventListener("click", handleCartAction);
   els.portfolioList.addEventListener("click", handlePortfolioAction);
   els.tradeList.addEventListener("click", handleTradeAction);
@@ -387,6 +389,37 @@ function handleWatchlistAction(event) {
 
   saveState();
   renderWatchlist();
+}
+
+function handleChartTooltipToggle(event) {
+  const hotspot = event.target.closest(".chart-hit");
+  if (!hotspot) return;
+
+  const shell = hotspot.closest(".chart-shell");
+  const tooltip = shell?.querySelector(".chart-tooltip");
+  if (!shell || !tooltip) return;
+
+  const title = hotspot.dataset.tipTitle || "";
+  const body = hotspot.dataset.tipBody || "";
+  const x = Number(hotspot.dataset.tipX || 180);
+  const y = Number(hotspot.dataset.tipY || 20);
+  const placement = hotspot.dataset.tipPlacement || "top";
+
+  tooltip.innerHTML = `
+    <strong>${escapeHtml(title)}</strong>
+    <span>${escapeHtml(body)}</span>
+  `;
+  tooltip.hidden = false;
+  tooltip.dataset.placement = placement;
+  tooltip.style.left = `${Math.min(Math.max(x, 84), 276)}px`;
+  tooltip.style.top = `${Math.min(Math.max(y, 18), 188)}px`;
+}
+
+function handleChartTooltipLeave(event) {
+  const shell = event.target.closest(".chart-shell");
+  if (!shell) return;
+  const tooltip = shell.querySelector(".chart-tooltip");
+  if (tooltip) tooltip.hidden = true;
 }
 
 async function openStockFromList(code, name) {
@@ -1176,7 +1209,7 @@ function renderWatchlist() {
             expanded
               ? `
                 <div class="watch-expanded">
-                  ${buildCandlestickChart(item.candles || buildFallbackCandles(item.closes || []), `${item.name} K 线走势`)}
+                  ${buildMarketPredictionChart(item)}
                   ${buildWatchComparison(item)}
                   <div class="model-grid">
                     ${(item.predictions || [])
@@ -1272,6 +1305,7 @@ function renderTabs() {
 }
 
 function renderSettings() {
+  if (!els.marketApiUrl || !els.aiProvider || !els.aiApiUrl || !els.apiToken || !els.configHint) return;
   els.marketApiUrl.value = appState.settings.marketApiUrl || "";
   els.aiProvider.value = appState.settings.aiProvider || "auto";
   els.aiApiUrl.value = appState.settings.aiApiUrl || "";
@@ -1867,6 +1901,141 @@ function buildLineChart(values, label) {
   `;
 }
 
+function buildMarketPredictionChart(item) {
+  const candles = (item.candles || buildFallbackCandles(item.closes || [])).filter(
+    (entry) =>
+      Number.isFinite(entry.open) &&
+      Number.isFinite(entry.close) &&
+      Number.isFinite(entry.high) &&
+      Number.isFinite(entry.low)
+  );
+  if (!candles.length) return buildLineChart(item.closes || [], `${item.name} 走势`);
+
+  const recentCandles = candles.slice(-10);
+  const forecast = buildForecastPoints(item.currentPrice, item.predictions || []);
+  const values = [
+    ...recentCandles.flatMap((entry) => [entry.high, entry.low]),
+    ...forecast.map((entry) => entry.price)
+  ].filter((value) => Number.isFinite(value));
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const spread = max - min || 1;
+  const width = 360;
+  const height = 240;
+  const chartLeft = 52;
+  const chartRight = 336;
+  const chartTop = 16;
+  const chartBottom = 176;
+  const chartWidth = chartRight - chartLeft;
+  const chartHeight = chartBottom - chartTop;
+  const yFor = (price) => chartBottom - ((price - min) / spread) * chartHeight;
+  const actualSlots = recentCandles.length;
+  const totalSlots = actualSlots + forecast.length;
+  const stepX = chartWidth / Math.max(totalSlots - 1, 1);
+
+  const gridLines = [0, 0.5, 1].map((ratio) => {
+    const price = max - spread * ratio;
+    const y = chartTop + chartHeight * ratio;
+    return `
+      <line x1="${chartLeft}" y1="${y}" x2="${chartRight}" y2="${y}" class="axis-grid"></line>
+      <text x="8" y="${y + 4}" class="axis-label">${price.toFixed(2)}</text>
+    `;
+  }).join("");
+
+  const candleWidth = Math.min(16, Math.max(8, stepX * 0.55));
+  const candleMarkup = recentCandles
+    .map((entry, index) => {
+      const x = chartLeft + index * stepX;
+      const wickX = x;
+      const openY = yFor(entry.open);
+      const closeY = yFor(entry.close);
+      const highY = yFor(entry.high);
+      const lowY = yFor(entry.low);
+      const bodyY = Math.min(openY, closeY);
+      const bodyHeight = Math.max(3, Math.abs(closeY - openY));
+      const toneClass = entry.close >= entry.open ? "candle-up" : "candle-down";
+      return `
+        <line x1="${wickX}" y1="${highY}" x2="${wickX}" y2="${lowY}" class="candle-wick ${toneClass}"></line>
+        <rect x="${x - candleWidth / 2}" y="${bodyY}" width="${candleWidth}" height="${bodyHeight}" rx="3" class="candle-body ${toneClass}"></rect>
+        <rect
+          x="${x - Math.max(candleWidth, 18)}"
+          y="${chartTop}"
+          width="${Math.max(candleWidth * 2, 24)}"
+          height="${chartHeight}"
+          rx="8"
+          class="chart-hit"
+          data-tip-x="${x}"
+          data-tip-y="${highY < chartTop + 28 ? lowY + 18 : highY - 8}"
+          data-tip-placement="${highY < chartTop + 28 ? "bottom" : "top"}"
+          data-tip-title="${escapeHtmlAttr("实际K线")}"
+          data-tip-body="${escapeHtmlAttr(`日期 ${formatFullDateLabel(entry.date, index)} | 开 ${entry.open.toFixed(2)} / 高 ${entry.high.toFixed(2)} / 低 ${entry.low.toFixed(2)} / 收 ${entry.close.toFixed(2)}`)}"
+        ></rect>
+      `;
+    })
+    .join("");
+
+  const actualClosePoints = recentCandles
+    .map((entry, index) => `${chartLeft + index * stepX},${yFor(entry.close)}`)
+    .join(" ");
+
+  const forecastStartX = chartLeft + (actualSlots - 1) * stepX;
+  const forecastPolyline = [
+    `${forecastStartX},${yFor(recentCandles.at(-1).close)}`,
+    ...forecast.map((entry, index) => `${chartLeft + (actualSlots + index) * stepX},${yFor(entry.price)}`)
+  ].join(" ");
+
+  const forecastMarkers = forecast
+    .map((entry, index) => {
+      const x = chartLeft + (actualSlots + index) * stepX;
+      const y = yFor(entry.price);
+      return `
+        <circle cx="${x}" cy="${y}" r="4.5" class="forecast-dot"></circle>
+        <text x="${x - 12}" y="${y - 10}" class="forecast-label">${entry.label} ${entry.price.toFixed(2)}</text>
+        <circle
+          cx="${x}"
+          cy="${y}"
+          r="16"
+          class="chart-hit chart-hit-point"
+          data-tip-x="${x}"
+          data-tip-y="${y < chartTop + 28 ? y + 18 : y - 10}"
+          data-tip-placement="${y < chartTop + 28 ? "bottom" : "top"}"
+          data-tip-title="${escapeHtmlAttr(`${entry.label} AI预测`)}"
+          data-tip-body="${escapeHtmlAttr(`预测价格 ${entry.price.toFixed(2)}`)}"
+        ></circle>
+      `;
+    })
+    .join("");
+
+  const xLabels = buildChartLabels(recentCandles, forecast, chartLeft, stepX, actualSlots)
+    .map(
+      (entry) => `
+        <text x="${entry.x}" y="206" class="time-label">${entry.label}</text>
+      `
+    )
+    .join("");
+
+  return `
+    <div class="chart-shell">
+      <div class="chart-caption">
+        <strong>实际 K 线 + AI 预测线</strong>
+        <span>点一下 K 线或预测点，可看详细价格</span>
+      </div>
+      <svg class="market-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="${item.name} 实际 K 线与 AI 预测线">
+        <rect x="${chartLeft}" y="${chartTop}" width="${chartWidth}" height="${chartHeight}" class="chart-panel"></rect>
+        ${gridLines}
+        <polyline class="actual-close-line" points="${actualClosePoints}"></polyline>
+        ${candleMarkup}
+        <polyline class="forecast-line" points="${forecastPolyline}"></polyline>
+        ${forecastMarkers}
+        <line x1="${forecastStartX}" y1="${chartTop}" x2="${forecastStartX}" y2="${chartBottom}" class="forecast-divider"></line>
+        ${xLabels}
+      </svg>
+      <div class="chart-tooltip" hidden></div>
+    </div>
+  `;
+}
+
 function buildCandlestickChart(candles, label) {
   const safe = (candles || []).filter(
     (item) =>
@@ -1909,8 +2078,71 @@ function buildCandlestickChart(candles, label) {
   `;
 }
 
+function buildForecastPoints(currentPrice, predictions) {
+  const valid = (predictions || []).filter((entry) => Number.isFinite(entry.targetPrice));
+  if (!valid.length) {
+    return [
+      { label: "5天", price: round2(currentPrice) },
+      { label: "10天", price: round2(currentPrice) }
+    ];
+  }
+
+  const projected5 = valid.map((entry) => currentPrice + (entry.targetPrice - currentPrice) * 0.55);
+  const projected10 = valid.map((entry) => entry.targetPrice);
+
+  return [
+    { label: "5天", price: round2(projected5.reduce((sum, value) => sum + value, 0) / projected5.length) },
+    { label: "10天", price: round2(projected10.reduce((sum, value) => sum + value, 0) / projected10.length) }
+  ];
+}
+
+function buildChartLabels(candles, forecast, chartLeft, stepX, actualSlots) {
+  const first = candles[0];
+  const mid = candles[Math.floor((candles.length - 1) / 2)];
+  const last = candles.at(-1);
+  const labels = [
+    { x: chartLeft, label: simplifyDateLabel(first?.date, "开始") },
+    { x: chartLeft + Math.floor((candles.length - 1) / 2) * stepX, label: simplifyDateLabel(mid?.date, "中间") },
+    { x: chartLeft + (actualSlots - 1) * stepX, label: simplifyDateLabel(last?.date, "今天") },
+    { x: chartLeft + actualSlots * stepX, label: forecast[0]?.label || "5天" },
+    { x: chartLeft + (actualSlots + 1) * stepX, label: forecast[1]?.label || "10天" }
+  ];
+  return labels;
+}
+
+function simplifyDateLabel(value, fallback) {
+  if (!value) return fallback;
+  const text = String(value);
+  if (text.includes("-")) return text.slice(5).replace("-", "/");
+  if (text.length >= 4) return text.slice(-4);
+  return text;
+}
+
+function formatFullDateLabel(value, index = 0) {
+  if (!value) return `第${index + 1}天`;
+  const text = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text.replaceAll("-", "/");
+  if (/^\d{4}\/\d{2}\/\d{2}$/.test(text)) return text;
+  if (/^\d{8}$/.test(text)) return `${text.slice(0, 4)}/${text.slice(4, 6)}/${text.slice(6, 8)}`;
+  return text;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeHtmlAttr(value) {
+  return escapeHtml(value);
+}
+
 function buildFallbackCandles(closes) {
   const safe = (closes || []).filter((value) => Number.isFinite(value) && value > 0);
+  const fallbackDates = buildRecentTradingDates(safe.length);
   return safe.map((close, index) => {
     const previous = safe[index - 1] ?? close;
     const drift = close - previous;
@@ -1918,13 +2150,31 @@ function buildFallbackCandles(closes) {
     const high = round2(Math.max(open, close) + Math.abs(drift) * 0.35 + close * 0.003);
     const low = round2(Math.min(open, close) - Math.abs(drift) * 0.35 - close * 0.003);
     return {
-      date: `${index + 1}`,
+      date: fallbackDates[index],
       open,
       close: round2(close),
       high,
       low
     };
   });
+}
+
+function buildRecentTradingDates(count) {
+  const dates = [];
+  const cursor = new Date();
+  cursor.setHours(12, 0, 0, 0);
+
+  while (dates.length < count) {
+    const day = cursor.getDay();
+    if (day !== 0 && day !== 6) {
+      dates.push(
+        `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`
+      );
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return dates.reverse();
 }
 
 function buildBarChart(values) {

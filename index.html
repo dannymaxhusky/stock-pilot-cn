@@ -21,11 +21,8 @@
     <div class="app-shell">
       <header class="hero-card">
         <div>
-          <p class="eyebrow">手机安装 · 直接使用 · 看涨幅预测</p>
-          <h1>5天10天涨幅预测</h1>
-          <p class="hero-copy">
-            把想看的股票加入自选，直接查看未来 5 天、10 天可能上涨多少，再决定要不要做模拟买卖。
-          </p>
+          <p class="eyebrow">AI大模型预测</p>
+          <p class="hero-copy hero-warning">仅供参考 自行斟酌</p>
         </div>
         <button id="installBtn" class="ghost-btn" hidden>安装到手机</button>
       </header>
@@ -37,7 +34,6 @@
               <p class="section-kicker">先加自选</p>
               <h2>看股票预测</h2>
             </div>
-            <span class="pill">适合长辈使用</span>
           </div>
 
           <form id="watchlistSearchForm" class="stack-form big-form">
@@ -109,56 +105,6 @@
             </div>
           </div>
 
-          <details class="settings-panel">
-            <summary>接口设置</summary>
-            <form id="settingsForm" class="stack-form compact-form">
-              <label>
-                <span>行情接口地址</span>
-                <input
-                  id="marketApiUrl"
-                  name="marketApiUrl"
-                  type="url"
-                  placeholder="例如 https://api.example.com/market"
-                />
-              </label>
-              <label>
-                <span>AI 提供商</span>
-                <select id="aiProvider" name="aiProvider">
-                  <option value="auto">自动选择</option>
-                  <option value="anthropic">Anthropic</option>
-                  <option value="openai">OpenAI</option>
-                  <option value="local">本地规则</option>
-                  <option value="custom">自定义接口</option>
-                </select>
-              </label>
-              <label>
-                <span>AI 接口地址</span>
-                <input
-                  id="aiApiUrl"
-                  name="aiApiUrl"
-                  type="url"
-                  placeholder="例如 https://api.example.com/analyze"
-                />
-              </label>
-              <label>
-                <span>接口令牌</span>
-                <input
-                  id="apiToken"
-                  name="apiToken"
-                  type="password"
-                  placeholder="可选，用于请求头 Authorization"
-                />
-              </label>
-              <div class="form-actions">
-                <button type="submit" class="ghost-btn">保存设置</button>
-              </div>
-              <p id="configHint" class="footnote"></p>
-              <p class="footnote">
-                当前版本会把设置保存到浏览器本地存储。生产环境建议把 AI 密钥放到服务端代理，不要直接暴露在前端。
-              </p>
-            </form>
-          </details>
-
           <div class="simple-banner">
             页面已经简化成手机直接可用的模式。先加自选看预测，再决定要不要加入模拟买卖。
           </div>
@@ -225,7 +171,6 @@
               <p class="section-kicker">我的设置</p>
               <h2>用户信息</h2>
             </div>
-            <span class="pill">本地保存</span>
           </div>
           <div id="userSummary" class="user-summary-grid"></div>
           <form id="profileForm" class="stack-form compact-form">

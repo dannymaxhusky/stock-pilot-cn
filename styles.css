@@ -56,7 +56,7 @@ button {
 .app-shell {
   max-width: 980px;
   margin: 0 auto;
-  padding: calc(20px + env(safe-area-inset-top)) 18px calc(110px + env(safe-area-inset-bottom));
+  padding: calc(18px + env(safe-area-inset-top)) 16px calc(92px + env(safe-area-inset-bottom));
 }
 
 .hero-card,
@@ -76,20 +76,20 @@ button {
   z-index: 20;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  gap: 6px;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   background: rgba(255, 248, 238, 0.94);
   backdrop-filter: blur(12px);
   border-top: 1px solid rgba(15, 61, 62, 0.08);
 }
 
 .nav-btn {
-  min-height: 58px;
-  padding: 12px 8px;
-  border-radius: 18px;
+  min-height: 48px;
+  padding: 10px 6px;
+  border-radius: 14px;
   background: rgba(15, 61, 62, 0.08);
   color: var(--primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.2;
 }
@@ -102,10 +102,10 @@ button {
 .hero-card {
   position: relative;
   overflow: hidden;
-  padding: 28px 24px;
-  margin-bottom: 20px;
+  padding: 16px 18px;
+  margin-bottom: 14px;
   display: grid;
-  gap: 18px;
+  gap: 8px;
 }
 
 .hero-card::after {
@@ -117,6 +117,11 @@ button {
   border-radius: 999px;
   background: linear-gradient(135deg, rgba(201, 109, 54, 0.22), rgba(15, 61, 62, 0.22));
   filter: blur(4px);
+}
+
+.hero-card p {
+  position: relative;
+  z-index: 1;
 }
 
 .eyebrow,
@@ -145,19 +150,26 @@ h2 {
 
 .hero-copy {
   max-width: 34rem;
-  margin: 12px 0 0;
+  margin: 2px 0 0;
   color: var(--muted);
   font-size: 1.04rem;
   line-height: 1.75;
 }
 
+.hero-warning {
+  color: var(--bad);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .content-grid {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .panel {
-  padding: 22px 18px;
+  padding: 18px 16px;
 }
 
 .panel-highlight {
@@ -165,26 +177,26 @@ h2 {
 }
 
 .simple-banner {
-  margin: 18px 0;
-  padding: 16px 18px;
+  margin: 14px 0;
+  padding: 13px 14px;
   border-radius: var(--radius-md);
   background: rgba(15, 61, 62, 0.06);
   color: var(--text);
-  font-size: 1rem;
-  line-height: 1.75;
+  font-size: 0.94rem;
+  line-height: 1.65;
 }
 
 .ranking-grid {
   display: grid;
-  gap: 16px;
-  margin-bottom: 20px;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .ranking-panel {
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.64);
   border: 1px solid rgba(15, 61, 62, 0.08);
-  padding: 16px;
+  padding: 14px;
 }
 
 .compact-head {
@@ -200,7 +212,7 @@ h2 {
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .pill {
@@ -231,14 +243,14 @@ h2 {
 
 .stack-form {
   display: grid;
-  gap: 16px;
+  gap: 12px;
 }
 
 .big-form textarea,
 .big-form input,
 .big-form select,
 .big-form button {
-  font-size: 1.12rem;
+  font-size: 1rem;
 }
 
 .compact-form {
@@ -274,7 +286,7 @@ h2 {
 }
 
 .stack-form span {
-  font-size: 1rem;
+  font-size: 0.92rem;
   color: var(--muted);
 }
 
@@ -285,8 +297,8 @@ select {
   border-radius: var(--radius-sm);
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
-  min-height: 54px;
-  padding: 15px 16px;
+  min-height: 46px;
+  padding: 12px 14px;
   color: var(--text);
   transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
@@ -308,7 +320,7 @@ textarea {
 .action-row,
 .inline-form {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -316,9 +328,9 @@ textarea {
 .ghost-btn,
 .text-btn {
   border-radius: 999px;
-  min-height: 52px;
-  padding: 13px 18px;
-  font-size: 1rem;
+  min-height: 42px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
   font-weight: 700;
   transition: transform 160ms ease, opacity 160ms ease, background 160ms ease;
 }
@@ -461,43 +473,43 @@ textarea {
 }
 
 .metric-card {
-  padding: 18px;
+  padding: 14px;
 }
 
 .metric-card span {
   display: block;
-  font-size: 0.98rem;
+  font-size: 0.86rem;
   color: var(--muted);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .metric-card strong {
-  font-size: 1.42rem;
+  font-size: 1.18rem;
 }
 
 .empty-state {
   color: var(--muted);
   text-align: center;
-  padding: 26px 20px;
-  font-size: 1rem;
-  line-height: 1.7;
+  padding: 20px 16px;
+  font-size: 0.94rem;
+  line-height: 1.6;
 }
 
 .list-stack {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .list-item {
-  padding: 16px;
+  padding: 13px;
 }
 
 .rank-item {
   display: grid;
-  grid-template-columns: 58px 1fr;
-  gap: 14px;
+  grid-template-columns: 48px 1fr;
+  gap: 10px;
   align-items: center;
-  padding: 16px;
+  padding: 12px;
   border-radius: var(--radius-md);
   background: var(--surface-strong);
   border: 1px solid rgba(15, 61, 62, 0.08);
@@ -512,19 +524,19 @@ textarea {
 }
 
 .rank-no {
-  width: 58px;
-  height: 58px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: var(--primary);
   color: #fff;
-  font-size: 1.32rem;
+  font-size: 1.08rem;
   font-weight: 700;
 }
 
 .rank-main .item-title {
-  font-size: 1.18rem;
+  font-size: 1.02rem;
 }
 
 .watch-card,
@@ -532,7 +544,7 @@ textarea {
   border-radius: var(--radius-md);
   background: var(--surface-strong);
   border: 1px solid rgba(15, 61, 62, 0.08);
-  padding: 16px;
+  padding: 13px;
 }
 
 .user-summary-grid {
@@ -602,14 +614,14 @@ textarea {
 
 .item-title {
   font-weight: 700;
-  font-size: 1.12rem;
+  font-size: 1rem;
 }
 
 .item-subtitle,
 .meta-note {
   color: var(--muted);
-  font-size: 0.98rem;
-  line-height: 1.7;
+  font-size: 0.88rem;
+  line-height: 1.55;
 }
 
 .tag-row {
@@ -620,8 +632,8 @@ textarea {
 }
 
 .tag {
-  font-size: 0.92rem;
-  padding: 8px 12px;
+  font-size: 0.82rem;
+  padding: 6px 10px;
   border-radius: 999px;
   background: rgba(15, 61, 62, 0.08);
   color: var(--primary);
@@ -653,6 +665,145 @@ textarea {
 
 .candle-chart {
   background: linear-gradient(180deg, rgba(15, 61, 62, 0.05), rgba(201, 109, 54, 0.03));
+}
+
+.chart-shell {
+  margin-top: 12px;
+  position: relative;
+}
+
+.chart-caption {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.chart-caption strong {
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.market-chart {
+  width: 100%;
+  height: 240px;
+  display: block;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(15, 61, 62, 0.05), rgba(201, 109, 54, 0.04));
+}
+
+.chart-panel {
+  fill: rgba(255, 255, 255, 0.65);
+  stroke: rgba(15, 61, 62, 0.08);
+}
+
+.axis-grid {
+  stroke: rgba(15, 61, 62, 0.12);
+  stroke-dasharray: 4 4;
+}
+
+.axis-label,
+.time-label,
+.forecast-label {
+  fill: var(--muted);
+  font-size: 11px;
+  font-family: var(--font-body);
+}
+
+.time-label {
+  text-anchor: middle;
+}
+
+.forecast-label {
+  fill: var(--accent);
+  font-weight: 700;
+}
+
+.candle-wick {
+  stroke-width: 2;
+}
+
+.candle-body {
+  opacity: 0.92;
+}
+
+.candle-up {
+  fill: #0f7a45;
+  stroke: #0f7a45;
+}
+
+.candle-down {
+  fill: #b54739;
+  stroke: #b54739;
+}
+
+.actual-close-line {
+  fill: none;
+  stroke: rgba(15, 61, 62, 0.35);
+  stroke-width: 2;
+}
+
+.forecast-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.forecast-dot {
+  fill: var(--accent);
+}
+
+.forecast-divider {
+  stroke: rgba(201, 109, 54, 0.32);
+  stroke-dasharray: 5 5;
+}
+
+.chart-hit {
+  fill: transparent;
+  pointer-events: all;
+}
+
+.chart-hit-point {
+  cursor: pointer;
+}
+
+.chart-tooltip {
+  position: absolute;
+  width: 170px;
+  transform: translate(-50%, -100%);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(23, 50, 51, 0.94);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(23, 50, 51, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.chart-tooltip[data-placement="bottom"] {
+  transform: translate(-50%, 0);
+}
+
+.chart-tooltip strong,
+.chart-tooltip span {
+  display: block;
+}
+
+.chart-tooltip strong {
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+
+.chart-tooltip span {
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
 }
 
 .chart-line {
