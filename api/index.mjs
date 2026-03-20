@@ -1,4 +1,5 @@
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL || "https://api.openai.com";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5-mini";
 const ANTHROPIC_BASE_URL = process.env.ANTHROPIC_BASE_URL || "";
 const ANTHROPIC_AUTH_TOKEN = process.env.ANTHROPIC_AUTH_TOKEN || "";
@@ -17,14 +18,27 @@ export default {
           openaiModel: OPENAI_MODEL,
           hasAnthropicKey: Boolean(ANTHROPIC_AUTH_TOKEN),
           anthropicModel: ANTHROPIC_MODEL,
-          defaultAiProvider: getDefaultAiProvider()
+          defaultAiProvider: getDefaultAiProvider(),
+          availableProviders: buildAvailableProviders()
         });
+      }
+
+      if (request.method === "GET" && pathname === "/api/search") {
+        const query = url.searchParams.get("q") || "";
+        const items = await searchStocks(query);
+        return json({ items });
       }
 
       if (request.method === "GET" && pathname === "/api/quote") {
         const code = url.searchParams.get("code") || "";
         const quote = await fetchMarketQuote(code);
         return json(quote);
+      }
+
+      if (request.method === "GET" && pathname === "/api/movers") {
+        const type = url.searchParams.get("type") || "gainers";
+        const items = await fetchMarketMovers(type);
+        return json({ items });
       }
 
       if (request.method === "POST" && pathname === "/api/ai/analyze") {
@@ -99,11 +113,93 @@ async function fetchMarketQuote(code) {
     currentPrice: normalizeEastMoneyPrice(quoteData.f43),
     changePercent: normalizeEastMoneyPrice(quoteData.f170),
     amplitude: normalizeEastMoneyPrice(quoteData.f171),
+    candles: rows.slice(-12).map((row) => {
+      const [date, open, close, high, low] = String(row).split(",");
+      return {
+        date,
+        open: Number(open),
+        close: Number(close),
+        high: Number(high),
+        low: Number(low)
+      };
+    }),
     closes: rows
       .slice(-5)
       .map((row) => Number(String(row).split(",")[2]))
       .filter((value) => Number.isFinite(value) && value > 0)
   };
+}
+
+async function fetchMarketMovers(type) {
+  const fid = "f3";
+  const fs = "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23";
+  const url = new URL("https://push2.eastmoney.com/api/qt/clist/get");
+  url.searchParams.set("pn", "1");
+  url.searchParams.set("pz", "10");
+  url.searchParams.set("po", type === "losers" ? "1" : "0");
+  url.searchParams.set("np", "1");
+  url.searchParams.set("ut", "bd1d9ddb04089700cf9c27f6f7426281");
+  url.searchParams.set("fltt", "2");
+  url.searchParams.set("invt", "2");
+  url.searchParams.set("fid", fid);
+  url.searchParams.set("fs", fs);
+  url.searchParams.set("fields", "f2,f3,f12,f14,f6");
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 StockPilotCN/1.0",
+      Referer: "https://quote.eastmoney.com/"
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`榜单接口异常：HTTP ${response.status}`);
+  }
+
+  const payload = await response.json();
+  const diff = payload?.data?.diff || [];
+  return diff.map((item) => ({
+    code: item.f12,
+    name: item.f14,
+    currentPrice: Number(item.f2),
+    changePercent: Number(item.f3),
+    amount: Number(item.f6)
+  }));
+}
+
+async function searchStocks(query) {
+  const keyword = String(query || "").trim();
+  if (!keyword) return [];
+
+  if (/^\d{6}$/.test(keyword)) {
+    const quote = await fetchMarketQuote(keyword);
+    return [{ code: quote.code, name: quote.name }];
+  }
+
+  const url = new URL("https://searchapi.eastmoney.com/api/suggest/get");
+  url.searchParams.set("input", keyword);
+  url.searchParams.set("type", "14");
+  url.searchParams.set("token", "D43BF722C8E33BDC906FB84D85E326E8");
+  url.searchParams.set("count", "10");
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 StockPilotCN/1.0",
+      Referer: "https://quote.eastmoney.com/"
+    }
+  });
+
+  if (!response.ok) throw new Error(`搜索接口异常：HTTP ${response.status}`);
+  const payload = await response.json();
+  const quotations = payload?.QuotationCodeTable?.Data || payload?.Data || [];
+
+  return quotations
+    .map((item) => ({
+      code: item.Code || item.SECURITY_CODE || item.code,
+      name: item.Name || item.SECURITY_NAME_ABBR || item.name
+    }))
+    .filter((item) => /^\d{6}$/.test(item.code))
+    .slice(0, 8);
 }
 
 async function analyzeWithAi(stock) {
@@ -131,7 +227,8 @@ async function analyzeWithAi(stock) {
 }
 
 async function analyzeWithOpenAI(stock, localAnalysis) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const endpoint = new URL("/v1/responses", ensureTrailingSlash(OPENAI_BASE_URL)).toString();
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -312,6 +409,17 @@ function getDefaultAiProvider() {
   if (ANTHROPIC_AUTH_TOKEN && ANTHROPIC_BASE_URL) return "anthropic";
   if (OPENAI_API_KEY) return "openai";
   return "local";
+}
+
+function buildAvailableProviders() {
+  const providers = [{ id: "local", label: "本地规则引擎" }];
+  if (ANTHROPIC_AUTH_TOKEN && ANTHROPIC_BASE_URL) {
+    providers.unshift({ id: "anthropic", label: `Anthropic · ${ANTHROPIC_MODEL}` });
+  }
+  if (OPENAI_API_KEY) {
+    providers.unshift({ id: "openai", label: `OpenAI · ${OPENAI_MODEL}` });
+  }
+  return providers;
 }
 
 function ensureTrailingSlash(value) {

@@ -29,6 +29,7 @@ cp .env.example .env
 ```bash
 PORT=4173
 OPENAI_API_KEY=你的_openai_key
+OPENAI_BASE_URL=https://api.openai.com
 OPENAI_MODEL=gpt-5-mini
 ANTHROPIC_BASE_URL=https://your-anthropic-proxy.example.com
 ANTHROPIC_AUTH_TOKEN=你的_anthropic_token
@@ -55,6 +56,7 @@ npm start
 
 ```bash
 OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com
 OPENAI_MODEL=gpt-5-mini
 ANTHROPIC_BASE_URL=https://sz.uyilink.com
 ANTHROPIC_AUTH_TOKEN=你的_token

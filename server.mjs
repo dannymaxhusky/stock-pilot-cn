@@ -11,6 +11,7 @@ const DB_FILE = path.join(DB_DIR, "db.json");
 const ENV = await loadEnv(path.join(__dirname, ".env"));
 const PORT = Number(ENV.PORT || 4173);
 const OPENAI_API_KEY = ENV.OPENAI_API_KEY || "";
+const OPENAI_BASE_URL = ENV.OPENAI_BASE_URL || "https://api.openai.com";
 const OPENAI_MODEL = ENV.OPENAI_MODEL || "gpt-5-mini";
 const ANTHROPIC_BASE_URL =
   ENV.ANTHROPIC_BASE_URL || process.env.ANTHROPIC_BASE_URL || "";
@@ -241,7 +242,8 @@ async function analyzeWithAi(stock) {
 }
 
 async function analyzeWithOpenAI(stock, localAnalysis) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const endpoint = new URL("/v1/responses", ensureTrailingSlash(OPENAI_BASE_URL)).toString();
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
