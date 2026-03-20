@@ -20,6 +20,7 @@ const els = {
   watchlistQuery: document.querySelector("#watchlistQuery"),
   watchlistMessage: document.querySelector("#watchlistMessage"),
   watchlistList: document.querySelector("#watchlistList"),
+  marketStrip: document.querySelector("#marketStrip"),
   marketTopGainers: document.querySelector("#marketTopGainers"),
   marketTopLosers: document.querySelector("#marketTopLosers"),
   futureTop5: document.querySelector("#futureTop5"),
@@ -68,7 +69,7 @@ let serverConfig = {
   hasAnthropicKey: false,
   anthropicModel: "",
   defaultAiProvider: "local",
-  availableProviders: [{ id: "local", label: "本地规则引擎" }]
+  availableProviders: [{ id: "local", label: "本地规则" }]
 };
 let appState = loadState();
 
@@ -77,7 +78,7 @@ boot();
 async function boot() {
   bindEvents();
   registerServiceWorker();
-  await Promise.all([loadServerConfig(), loadMovers()]);
+  await Promise.all([loadServerConfig(), loadMovers(), loadIndices()]);
   renderAll();
 }
 
@@ -155,6 +156,7 @@ function defaultState() {
       losers: [],
       updatedAt: null
     },
+    indices: [],
     watchlist: [],
     cart: [],
     holdings: [],
@@ -197,7 +199,7 @@ async function loadServerConfig() {
       hasAnthropicKey: false,
       anthropicModel: "",
       defaultAiProvider: "local",
-      availableProviders: [{ id: "local", label: "本地规则引擎" }]
+      availableProviders: [{ id: "local", label: "本地规则" }]
     };
   }
 }
@@ -821,6 +823,16 @@ async function loadMovers() {
   }
 }
 
+async function loadIndices() {
+  try {
+    const payload = await apiRequest("/indices");
+    appState.indices = payload.items || [];
+    saveState();
+  } catch {
+    appState.indices = [];
+  }
+}
+
 function persistAnalysis(analysis) {
   appState.lastAnalysis = analysis;
   appState.analysisHistory = [toAnalysisSnapshot(analysis), ...(appState.analysisHistory || [])]
@@ -1151,6 +1163,7 @@ function resetPortfolioOnly() {
 }
 
 function renderAll() {
+  renderMarketStrip();
   renderTabs();
   renderSettings();
   renderUserPanel();
@@ -1165,6 +1178,38 @@ function renderAll() {
   renderReport();
 }
 
+function renderMarketStrip() {
+  if (!els.marketStrip) return;
+  const list = appState.indices || [];
+
+  if (!list.length) {
+    els.marketStrip.innerHTML = `
+      <article class="market-ticker market-loading">
+        <span>市场状态加载中...</span>
+      </article>
+    `;
+    return;
+  }
+
+  els.marketStrip.innerHTML = list
+    .map(
+      (item) => `
+        <article class="market-ticker ${item.changePercent >= 0 ? "is-up" : "is-down"}">
+          <div class="ticker-head">
+            <strong>${item.name}</strong>
+            <span class="ticker-code">${item.code}</span>
+          </div>
+          <div class="ticker-price">${formatMoney(item.currentPrice)}</div>
+          <div class="ticker-foot">
+            <span class="ticker-status">${item.changePercent >= 0 ? "市场偏强" : "市场偏弱"}</span>
+            <div class="ticker-change ${item.changePercent >= 0 ? "trend-up" : "trend-down"}">${formatSigned(item.changePercent)}%</div>
+          </div>
+        </article>
+      `
+    )
+    .join("");
+}
+
 function renderWatchlist() {
   if (!appState.watchlist.length) {
     els.watchlistList.className = "list-stack empty-state";
@@ -1177,28 +1222,49 @@ function renderWatchlist() {
     .map((item) => {
       const expanded = appState.expandedWatchCode === item.code;
       const topPrediction = item.predictions?.[0];
+      const recent5 = calculateRecentChange(item.closes || []);
+      const changePercent = Number(item.changePercent) || 0;
+      const currentPrice = Number(item.currentPrice) || 0;
+      const previousClose = changePercent === -100 ? currentPrice : currentPrice / (1 + changePercent / 100);
+      const todayMove = roundMoney(currentPrice - previousClose);
+      const summary = buildPredictionSummary(item);
+      const quickRows = buildWatchQuickRows(item);
       return `
         <article class="watch-card">
-          <div class="item-head">
-            <div>
+          <div class="watch-quote-row">
+            <div class="watch-identity">
               <div class="item-title">${item.name}</div>
-              <div class="item-subtitle">${item.code}</div>
+              <div class="item-subtitle">${item.code} · ${summary.caption}</div>
             </div>
-            <strong class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</strong>
+            <div class="watch-price-block">
+              <strong>${formatMoney(item.currentPrice)}</strong>
+              <span class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSigned(Number(item.changePercent) || 0)}%</span>
+              <small class="${Number(item.changePercent) >= 0 ? "trend-up" : "trend-down"}">${formatSignedMoney(todayMove)}</small>
+            </div>
           </div>
-          <div class="tag-row">
+          <div class="watch-market-board">
+            <div class="watch-stat-card">
+              <span class="watch-stat-label">真实 5 日</span>
+              <strong class="${recent5 >= 0 ? "trend-up" : "trend-down"}">${formatSigned(recent5)}%</strong>
+              <small class="watch-stat-note">最近收盘走势</small>
+            </div>
+            <div class="watch-stat-card">
+              <span class="watch-stat-label">综合判断</span>
+              <strong class="${mapTrendClass(summary.direction)}">${summary.direction}</strong>
+              <small class="watch-stat-note">${summary.detail}</small>
+            </div>
+            <div class="watch-stat-card">
+              <span class="watch-stat-label">最高目标</span>
+              <strong class="${summary.bestGap >= 0 ? "trend-up" : "trend-down"}">${formatSigned(summary.bestGap)}%</strong>
+              <small class="watch-stat-note">${formatMoney(summary.bestTarget)}</small>
+            </div>
+          </div>
+          <div class="watch-meta-row">
             <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
-            ${
-              topPrediction
-                ? `<span class="tag ${mapTrendClass(topPrediction.direction)}">${renderProviderName(topPrediction.provider)} ${topPrediction.direction}</span>`
-                : ""
-            }
-            ${
-              topPrediction
-                ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>`
-                : ""
-            }
+            ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
+            ${item.predictions?.length ? `<span class="tag">模型 ${item.predictions.length} 家</span>` : ""}
           </div>
+          <div class="watch-model-scan">${quickRows}</div>
           <div class="action-row">
             <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">${expanded ? "收起" : "展开"}</button>
             <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
@@ -1219,7 +1285,7 @@ function renderWatchlist() {
                             <div class="item-head">
                               <div>
                                 <div class="item-title">${renderProviderName(prediction.provider)}</div>
-                                <div class="item-subtitle">${prediction.model || prediction.provider}</div>
+                                <div class="item-subtitle">未来 5 到 10 天预测</div>
                               </div>
                               <span class="pill ${mapTrendClass(prediction.direction)}">${prediction.direction}</span>
                             </div>
@@ -1242,6 +1308,71 @@ function renderWatchlist() {
       `;
     })
     .join("");
+}
+
+function buildWatchQuickRows(item) {
+  const preferredOrder = ["openai", "anthropic", "local"];
+  const ordered = [...(item.predictions || [])].sort((a, b) => {
+    const aIndex = preferredOrder.indexOf(a.provider);
+    const bIndex = preferredOrder.indexOf(b.provider);
+    return (aIndex === -1 ? 99 : aIndex) - (bIndex === -1 ? 99 : bIndex);
+  });
+
+  return ordered
+    .slice(0, 3)
+    .map(
+      (prediction, index) => `
+        <div class="watch-model-row ${mapTrendClass(prediction.direction)}">
+          <span class="watch-model-rank">${index + 1}</span>
+          <span class="watch-model-name">${renderProviderName(prediction.provider)}</span>
+          <span class="watch-model-view">${prediction.direction}</span>
+          <span class="watch-model-target ${prediction.targetPrice >= item.currentPrice ? "trend-up" : "trend-down"}">${formatSigned(
+            round2(((prediction.targetPrice - item.currentPrice) / item.currentPrice) * 100)
+          )}%</span>
+        </div>
+      `
+    )
+    .join("");
+}
+
+function buildPredictionSummary(item) {
+  const predictions = item.predictions || [];
+  if (!predictions.length) {
+    return {
+      direction: "观望",
+      caption: "等待模型判断",
+      detail: "暂无有效结果",
+      bestTarget: Number(item.currentPrice) || 0,
+      bestGap: 0
+    };
+  }
+
+  const trendCounts = predictions.reduce(
+    (acc, prediction) => {
+      if (prediction.direction === "看涨") acc.up += 1;
+      else if (prediction.direction === "看跌") acc.down += 1;
+      else acc.flat += 1;
+      return acc;
+    },
+    { up: 0, down: 0, flat: 0 }
+  );
+
+  let direction = "震荡";
+  if (trendCounts.up > trendCounts.down) direction = "偏多";
+  if (trendCounts.down > trendCounts.up) direction = "偏空";
+
+  const bestTarget = predictions.reduce((max, prediction) => Math.max(max, Number(prediction.targetPrice) || 0), 0);
+  const bestGap = item.currentPrice
+    ? round2(((bestTarget - item.currentPrice) / item.currentPrice) * 100)
+    : 0;
+
+  return {
+    direction,
+    caption: `${predictions.length} 家模型`,
+    detail: `${trendCounts.up} 看涨 / ${trendCounts.down} 看跌 / ${trendCounts.flat} 震荡`,
+    bestTarget,
+    bestGap
+  };
 }
 
 function buildWatchComparison(item) {
@@ -1427,7 +1558,7 @@ function renderUserPanel() {
     </article>
   `;
 
-  const providers = (serverConfig.availableProviders || []).map((item) => item.label).join("、") || "本地规则引擎";
+  const providers = (serverConfig.availableProviders || []).map((item) => item.label).join("、") || "本地规则";
   const selectedProvider =
     appState.settings.aiProvider === "auto"
       ? `自动选择（当前默认 ${renderProviderName(serverConfig.defaultAiProvider)}）`
@@ -1435,7 +1566,7 @@ function renderUserPanel() {
 
   els.modelSummary.innerHTML = `
     <strong>当前模型配置：</strong>
-    后台可用模型有 ${providers}。当前前端调用方式为 ${selectedProvider}，用户在股票详情里会直接看到模型名称。
+    当前已启用的预测来源有 ${providers}。用户在股票详情里会直接看到来源名称，不会显示底层模型代号。
   `;
 }
 
@@ -1683,7 +1814,7 @@ function renderTrades() {
           <div class="tag-row">
             <span class="tag">${trade.quantity} 股</span>
             <span class="tag">成交价 ${formatMoney(trade.price)}</span>
-            <span class="tag">模型 ${trade.model || "rule-engine"}</span>
+            <span class="tag">来源 ${renderProviderName(trade.provider)}</span>
             ${
               Number.isFinite(trade.pnl)
                 ? `<span class="tag ${trade.pnl >= 0 ? "good" : "bad"}">已实现 ${formatMoney(trade.pnl)}</span>`
@@ -1765,7 +1896,7 @@ function buildReviewTimeline(code) {
       tone: mapTrendClass(item.ai.direction),
       tags: [
         { label: renderProviderName(item.provider) },
-        { label: item.model || "rule-engine" },
+        { label: renderProviderName(item.provider) },
         { label: `止损 ${formatMoney(item.ai.stopPrice)}`, className: "warn" }
       ]
     }));
@@ -1788,7 +1919,7 @@ function buildReviewTimeline(code) {
       tags: [
         { label: item.type },
         { label: `价格 ${formatMoney(item.price)}` },
-        { label: item.model || "rule-engine" }
+        { label: renderProviderName(item.provider) }
       ]
     }));
 
@@ -2281,8 +2412,8 @@ async function installPwa() {
 }
 
 function mapTrendClass(direction) {
-  if (direction === "看涨") return "good";
-  if (direction === "看跌") return "bad";
+  if (direction === "看涨" || direction === "偏多") return "good";
+  if (direction === "看跌" || direction === "偏空") return "bad";
   return "warn";
 }
 
@@ -2329,15 +2460,15 @@ function clamp(value, min, max) {
 
 function renderProviderName(provider) {
   if (provider === "anthropic") {
-    return `Anthropic (${serverConfig.anthropicModel || "未命名模型"})`;
+    return "Anthropic";
   }
   if (provider === "openai") {
-    return `OpenAI (${serverConfig.openaiModel || "未命名模型"})`;
+    return "OpenAI";
   }
   if (provider === "custom") {
     return "自定义接口";
   }
-  return "本地规则引擎";
+  return "本地规则";
 }
 
 function getPreviousAnalysis(current) {

@@ -41,6 +41,11 @@ export default {
         return json({ items });
       }
 
+      if (request.method === "GET" && pathname === "/api/indices") {
+        const items = await fetchMarketIndices();
+        return json({ items });
+      }
+
       if (request.method === "POST" && pathname === "/api/ai/analyze") {
         const payload = await request.json();
         const analysis = await analyzeWithAi(payload);
@@ -165,6 +170,41 @@ async function fetchMarketMovers(type) {
     changePercent: Number(item.f3),
     amount: Number(item.f6)
   }));
+}
+
+async function fetchMarketIndices() {
+  const targets = [
+    { code: "000001", name: "上证指数", secid: "1.000001" },
+    { code: "399001", name: "深证成指", secid: "0.399001" },
+    { code: "399006", name: "创业板指", secid: "0.399006" }
+  ];
+
+  const headers = {
+    "User-Agent": "Mozilla/5.0 StockPilotCN/1.0",
+    Referer: "https://quote.eastmoney.com/"
+  };
+
+  const items = await Promise.all(
+    targets.map(async (target) => {
+      const url = new URL("https://push2.eastmoney.com/api/qt/stock/get");
+      url.searchParams.set("secid", target.secid);
+      url.searchParams.set("fields", "f43,f57,f58,f169,f170");
+      url.searchParams.set("ut", "fa5fd1943c7b386f172d6893dbfba10b");
+      const response = await fetch(url, { headers });
+      if (!response.ok) throw new Error(`指数接口异常：HTTP ${response.status}`);
+      const payload = await response.json();
+      const data = payload?.data;
+      if (!data) throw new Error("指数接口未返回有效数据");
+      return {
+        code: target.code,
+        name: data.f58 || target.name,
+        currentPrice: normalizeEastMoneyPrice(data.f43),
+        changePercent: normalizeEastMoneyPrice(data.f170)
+      };
+    })
+  );
+
+  return items;
 }
 
 async function searchStocks(query) {
@@ -412,12 +452,12 @@ function getDefaultAiProvider() {
 }
 
 function buildAvailableProviders() {
-  const providers = [{ id: "local", label: "本地规则引擎" }];
+  const providers = [{ id: "local", label: "本地规则" }];
   if (ANTHROPIC_AUTH_TOKEN && ANTHROPIC_BASE_URL) {
-    providers.unshift({ id: "anthropic", label: `Anthropic · ${ANTHROPIC_MODEL}` });
+    providers.unshift({ id: "anthropic", label: "Anthropic" });
   }
   if (OPENAI_API_KEY) {
-    providers.unshift({ id: "openai", label: `OpenAI · ${OPENAI_MODEL}` });
+    providers.unshift({ id: "openai", label: "OpenAI" });
   }
   return providers;
 }

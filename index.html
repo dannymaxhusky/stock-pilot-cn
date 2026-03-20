@@ -15,7 +15,7 @@
     <link rel="icon" href="./icon-192.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon-192.svg" />
     <link rel="stylesheet" href="./styles.css" />
-    <title>5天10天涨幅预测</title>
+    <title>AI大模型预测</title>
   </head>
   <body>
     <div class="app-shell">
@@ -27,6 +27,12 @@
         <button id="installBtn" class="ghost-btn" hidden>安装到手机</button>
       </header>
 
+      <section class="market-strip" id="marketStrip">
+        <article class="market-ticker market-loading">
+          <span>市场状态加载中...</span>
+        </article>
+      </section>
+
       <main class="content-grid">
         <section class="panel panel-highlight" data-tab="watchlist">
           <div class="panel-head">
@@ -34,6 +40,7 @@
               <p class="section-kicker">先加自选</p>
               <h2>看股票预测</h2>
             </div>
+            <div class="panel-chip">AI 选股</div>
           </div>
 
           <form id="watchlistSearchForm" class="stack-form big-form">
@@ -116,6 +123,7 @@
               <p class="section-kicker">市场排名</p>
               <h2>涨跌前十</h2>
             </div>
+            <div class="panel-chip">热榜</div>
           </div>
           <div class="ranking-grid">
             <div class="ranking-panel">
@@ -171,6 +179,7 @@
               <p class="section-kicker">我的设置</p>
               <h2>用户信息</h2>
             </div>
+            <div class="panel-chip">账户</div>
           </div>
           <div id="userSummary" class="user-summary-grid"></div>
           <form id="profileForm" class="stack-form compact-form">
@@ -209,7 +218,10 @@
               <p class="section-kicker">先看资金</p>
               <h2>模拟买卖</h2>
             </div>
-            <button id="resetDataBtn" class="text-btn">重置模拟资产</button>
+            <div class="panel-head-actions">
+              <div class="panel-chip">交易台</div>
+              <button id="resetDataBtn" class="text-btn">重置模拟资产</button>
+            </div>
           </div>
 
           <div class="wallet-grid">
@@ -295,10 +307,22 @@
         </section>
       </main>
       <nav class="bottom-nav" id="bottomNav">
-        <button class="nav-btn active" data-tab-target="watchlist">自选预测</button>
-        <button class="nav-btn" data-tab-target="movers">涨跌前十</button>
-        <button class="nav-btn" data-tab-target="trade">虚拟交易</button>
-        <button class="nav-btn" data-tab-target="user">用户信息</button>
+        <button class="nav-btn active" data-tab-target="watchlist">
+          <span class="nav-icon icon-watchlist" aria-hidden="true"></span>
+          <span class="nav-label">自选预测</span>
+        </button>
+        <button class="nav-btn" data-tab-target="movers">
+          <span class="nav-icon icon-movers" aria-hidden="true"></span>
+          <span class="nav-label">涨跌前十</span>
+        </button>
+        <button class="nav-btn" data-tab-target="trade">
+          <span class="nav-icon icon-trade" aria-hidden="true"></span>
+          <span class="nav-label">虚拟交易</span>
+        </button>
+        <button class="nav-btn" data-tab-target="user">
+          <span class="nav-icon icon-user" aria-hidden="true"></span>
+          <span class="nav-label">用户信息</span>
+        </button>
       </nav>
     </div>
 
