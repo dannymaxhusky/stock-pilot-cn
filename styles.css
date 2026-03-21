@@ -291,7 +291,9 @@ h2 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
   margin: 0 0 8px;
-  padding: 1px 0 4px;
+  padding: 2px 3px 5px;
+  border-radius: 16px;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(8, 17, 29, 0.96), rgba(8, 17, 29, 0.72), transparent);
   backdrop-filter: blur(10px);
   transition: background 180ms ease, backdrop-filter 180ms ease, box-shadow 180ms ease;
@@ -300,6 +302,7 @@ h2 {
 .market-strip.is-stuck {
   background: linear-gradient(180deg, rgba(8, 17, 29, 0.62), rgba(8, 17, 29, 0.34), transparent);
   backdrop-filter: blur(16px) saturate(1.06);
+  box-shadow: 0 10px 22px rgba(4, 10, 20, 0.14);
 }
 
 .market-ticker {
@@ -317,6 +320,7 @@ h2 {
   border-color: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 18px rgba(4, 10, 20, 0.18);
   backdrop-filter: blur(18px) saturate(1.08);
+  min-height: 58px;
 }
 
 .market-ticker.is-up {
@@ -374,6 +378,19 @@ h2 {
   letter-spacing: 0.01em;
 }
 
+.market-strip.is-stuck .ticker-head {
+  margin-bottom: 3px;
+  font-size: 0.56rem;
+}
+
+.market-strip.is-stuck .ticker-head strong {
+  font-size: 0.66rem;
+}
+
+.market-strip.is-stuck .ticker-price {
+  font-size: 0.8rem;
+}
+
 .ticker-foot {
   display: flex;
   justify-content: space-between;
@@ -385,6 +402,11 @@ h2 {
 .ticker-status {
   color: var(--muted);
   font-size: 0.6rem;
+}
+
+.market-strip.is-stuck .ticker-status,
+.market-strip.is-stuck .ticker-change {
+  font-size: 0.56rem;
 }
 
 .market-ticker.is-live .ticker-status {
