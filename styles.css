@@ -204,14 +204,18 @@ button {
 }
 
 .hero-card {
-  position: relative;
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 4px);
+  z-index: 18;
   overflow: hidden;
-  padding: 10px 14px;
-  margin-bottom: 10px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  background: rgba(8, 20, 33, 0.92);
+  backdrop-filter: blur(18px);
 }
 
 .hero-card::after {
@@ -235,15 +239,15 @@ button {
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
 }
 
 .eyebrow,
 .section-kicker {
-  margin: 0 0 8px;
-  font-size: 0.84rem;
-  letter-spacing: 0.12em;
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: #60d8b0;
 }
@@ -267,32 +271,38 @@ h2 {
   max-width: none;
   margin: 0;
   color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.25;
+  font-size: 0.76rem;
+  line-height: 1.15;
   white-space: nowrap;
 }
 
 .hero-warning {
   color: #ff8b8b;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .market-strip {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 50px);
+  z-index: 17;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 0 10px;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 1px 0 4px;
+  background: linear-gradient(180deg, rgba(8, 17, 29, 0.96), rgba(8, 17, 29, 0.72), transparent);
+  backdrop-filter: blur(10px);
 }
 
 .market-ticker {
-  padding: 8px 8px 7px;
-  border-radius: 14px;
+  padding: 6px 7px 6px;
+  border-radius: 12px;
   background: linear-gradient(180deg, rgba(18, 30, 46, 0.96), rgba(10, 20, 31, 0.96));
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-  min-height: 72px;
+  min-height: 62px;
 }
 
 .market-ticker.is-up {
@@ -327,15 +337,15 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 5px;
+  margin-bottom: 4px;
   color: var(--muted);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
 }
 
 .ticker-head strong {
   color: var(--text);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.15;
 }
@@ -345,7 +355,7 @@ h2 {
 }
 
 .ticker-price {
-  font-size: 0.96rem;
+  font-size: 0.88rem;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
@@ -354,13 +364,13 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 5px;
+  margin-top: 3px;
 }
 
 .ticker-status {
   color: var(--muted);
-  font-size: 0.64rem;
+  font-size: 0.6rem;
 }
 
 .market-ticker.is-live .ticker-status {
