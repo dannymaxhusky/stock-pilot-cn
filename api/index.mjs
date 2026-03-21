@@ -114,7 +114,7 @@ async function fetchMarketQuote(code) {
   historyUrl.searchParams.set("fields2", "f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61");
   historyUrl.searchParams.set("klt", "101");
   historyUrl.searchParams.set("fqt", "1");
-  historyUrl.searchParams.set("lmt", "10");
+  historyUrl.searchParams.set("lmt", "240");
   historyUrl.searchParams.set("end", "20500101");
   historyUrl.searchParams.set("ut", "fa5fd1943c7b386f172d6893dbfba10b");
 
@@ -142,7 +142,7 @@ async function fetchMarketQuote(code) {
     currentPrice: normalizeEastMoneyPrice(quoteData.f43),
     changePercent: normalizeEastMoneyPrice(quoteData.f170),
     amplitude: normalizeEastMoneyPrice(quoteData.f171),
-    candles: rows.slice(-12).map((row) => {
+    candles: rows.slice(-240).map((row) => {
       const [date, open, close, high, low] = String(row).split(",");
       return {
         date,

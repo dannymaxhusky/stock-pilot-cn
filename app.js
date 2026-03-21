@@ -223,6 +223,7 @@ function defaultState() {
       aiApiUrl: "",
       apiToken: ""
     },
+    chartRanges: {},
     profile: {
       name: "股友",
       city: "",
@@ -482,6 +483,13 @@ function handleWatchlistAction(event) {
     appState.expandedWatchCode = appState.expandedWatchCode === code ? "" : code;
   }
 
+  if (actionTarget.dataset.action === "set-watch-range") {
+    appState.chartRanges = { ...(appState.chartRanges || {}), [code]: actionTarget.dataset.range || "quarter" };
+    saveState();
+    renderWatchlist();
+    return;
+  }
+
   if (actionTarget.dataset.action === "remove-watch") {
     appState.watchlist = appState.watchlist.filter((item) => item.code !== code);
     if (appState.expandedWatchCode === code) appState.expandedWatchCode = "";
@@ -491,6 +499,11 @@ function handleWatchlistAction(event) {
 
   if (actionTarget.dataset.action === "refresh-watch") {
     refreshWatchItem(code);
+    return;
+  }
+
+  if (actionTarget.dataset.action === "share-watch") {
+    shareWatchCard(code, actionTarget);
     return;
   }
 
@@ -564,6 +577,49 @@ async function addStockFromRanking(code, name) {
     renderRankings();
   } catch (error) {
     els.watchlistMessage.textContent = `加入自选失败：${error.message}`;
+  }
+}
+
+async function shareWatchCard(code, button) {
+  const item = appState.watchlist.find((entry) => entry.code === code);
+  const target = document.querySelector(`[data-capture-code="${code}"]`);
+  if (!item || !target) {
+    renderNotice("当前股票详情还没有准备好，暂时不能生成长图。");
+    return;
+  }
+
+  try {
+    setBusyState(button, true, "生成中...", 18);
+    const html2canvas = await ensureHtml2Canvas();
+    setBusyState(button, true, "渲染长图...", 56);
+    const canvas = await html2canvas(target, {
+      backgroundColor: "#08111d",
+      scale: Math.min(window.devicePixelRatio || 2, 2),
+      useCORS: true,
+      logging: false
+    });
+    setBusyState(button, true, "准备分享...", 82);
+    const blob = await canvasToBlob(canvas);
+    const filename = `${item.code}-${item.name}-详情长图.png`;
+    const file = new File([blob], filename, { type: "image/png" });
+
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `${item.name} 详情长图`
+      });
+      renderNotice(`${item.name} 长图已准备好，可直接分享。`);
+    } else {
+      downloadBlob(blob, filename);
+      renderNotice(`${item.name} 长图已生成，已开始下载。`);
+    }
+    setBusyState(button, true, "已生成", 100);
+  } catch (error) {
+    renderNotice(`生成长图失败：${error.message}`);
+  } finally {
+    setTimeout(() => {
+      setBusyState(button, false, "生成长图");
+    }, 320);
   }
 }
 
@@ -1636,6 +1692,7 @@ function renderWatchlist() {
       const summary = buildPredictionSummary(displayItem);
       return `
         <article class="watch-card">
+          <div class="watch-capture-shell" data-capture-code="${item.code}">
           <div class="watch-summary-trigger" data-action="toggle-watch" data-code="${item.code}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}">
           <div class="watch-quote-row">
             <div class="watch-identity" data-action="toggle-watch" data-code="${item.code}">
@@ -1671,15 +1728,14 @@ function renderWatchlist() {
                   </div>
                 </div>
                 <div class="watch-meta-row">
-                  <span class="tag">现价 ${formatMoney(item.currentPrice)}</span>
                   ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
                   ${normalizedPredictions.length ? `<span class="tag">模型 ${normalizedPredictions.length} 家</span>` : ""}
                 </div>
                 ${failureNotice}
                 <div class="action-row">
-                  <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">收起</button>
                   <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
-                  <button class="primary-btn" data-action="add-watch-cart" data-code="${item.code}">加入虚拟交易</button>
+                  <button class="ghost-btn" data-action="share-watch" data-code="${item.code}">生成长图</button>
+                  <button class="primary-btn" data-action="add-watch-cart" data-code="${item.code}">加入交易</button>
                   <button class="text-btn" data-action="remove-watch" data-code="${item.code}">删除</button>
                 </div>
                 <div class="watch-expanded">
@@ -1712,6 +1768,7 @@ function renderWatchlist() {
               `
               : ""
           }
+          </div>
         </article>
       `;
     })
@@ -2497,7 +2554,8 @@ function buildMarketPredictionChart(item) {
   );
   if (!candles.length) return buildLineChart(item.closes || [], `${item.name} 走势`);
 
-  const recentCandles = candles.slice(-10);
+  const range = (appState.chartRanges && appState.chartRanges[item.code]) || "quarter";
+  const recentCandles = pickCandlesByRange(candles, range);
   const forecast = buildForecastPoints(item.currentPrice, item.predictions || []);
   const values = [
     ...recentCandles.flatMap((entry) => [entry.high, entry.low]),
@@ -2507,10 +2565,11 @@ function buildMarketPredictionChart(item) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   const spread = max - min || 1;
-  const width = 360;
+  const dynamicWidth = Math.max(360, recentCandles.length * 18 + 120);
+  const width = dynamicWidth;
   const height = 240;
   const chartLeft = 52;
-  const chartRight = 336;
+  const chartRight = width - 24;
   const chartTop = 16;
   const chartBottom = 176;
   const chartWidth = chartRight - chartLeft;
@@ -2577,7 +2636,6 @@ function buildMarketPredictionChart(item) {
       const y = yFor(entry.price);
       return `
         <circle cx="${x}" cy="${y}" r="4.5" class="forecast-dot"></circle>
-        <text x="${x - 12}" y="${y - 10}" class="forecast-label">${entry.label} ${entry.price.toFixed(2)}</text>
         <circle
           cx="${x}"
           cy="${y}"
@@ -2603,20 +2661,25 @@ function buildMarketPredictionChart(item) {
 
   return `
     <div class="chart-shell">
-      <div class="chart-caption">
-        <strong>实际 K 线 + AI 预测线</strong>
-        <span>点一下 K 线或预测点，可看详细价格</span>
+      <div class="chart-range-strip" role="tablist" aria-label="K线周期">
+        ${buildChartRangeTabs(item.code, range)}
       </div>
-      <svg class="market-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="${item.name} 实际 K 线与 AI 预测线">
-        <rect x="${chartLeft}" y="${chartTop}" width="${chartWidth}" height="${chartHeight}" class="chart-panel"></rect>
-        ${gridLines}
-        <polyline class="actual-close-line" points="${actualClosePoints}"></polyline>
-        ${candleMarkup}
-        <polyline class="forecast-line" points="${forecastPolyline}"></polyline>
-        ${forecastMarkers}
-        <line x1="${forecastStartX}" y1="${chartTop}" x2="${forecastStartX}" y2="${chartBottom}" class="forecast-divider"></line>
-        ${xLabels}
-      </svg>
+      <div class="chart-caption">
+        <strong>K线+AI预测</strong>
+        <span>${recentCandles.length > 30 ? "左右滑动看更多" : "点线看价格"}</span>
+      </div>
+      <div class="chart-scroll-shell">
+        <svg class="market-chart" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-label="${item.name} 实际 K 线与 AI 预测线">
+          <rect x="${chartLeft}" y="${chartTop}" width="${chartWidth}" height="${chartHeight}" class="chart-panel"></rect>
+          ${gridLines}
+          <polyline class="actual-close-line" points="${actualClosePoints}"></polyline>
+          ${candleMarkup}
+          <polyline class="forecast-line" points="${forecastPolyline}"></polyline>
+          ${forecastMarkers}
+          <line x1="${forecastStartX}" y1="${chartTop}" x2="${forecastStartX}" y2="${chartBottom}" class="forecast-divider"></line>
+          ${xLabels}
+        </svg>
+      </div>
       <div class="chart-tooltip" hidden></div>
     </div>
   `;
@@ -2682,6 +2745,40 @@ function buildForecastPoints(currentPrice, predictions) {
   ];
 }
 
+function pickCandlesByRange(candles, range) {
+  const map = {
+    month: 22,
+    quarter: 66,
+    year: 240,
+    all: 9999
+  };
+  const count = map[range] || map.quarter;
+  return candles.slice(-count);
+}
+
+function buildChartRangeTabs(code, activeRange) {
+  const options = [
+    { id: "month", label: "月度" },
+    { id: "quarter", label: "季度" },
+    { id: "year", label: "年度" },
+    { id: "all", label: "全周期" }
+  ];
+  return options
+    .map(
+      (option) => `
+        <button
+          class="chart-range-btn ${option.id === activeRange ? "is-active" : ""}"
+          data-action="set-watch-range"
+          data-code="${code}"
+          data-range="${option.id}"
+          role="tab"
+          aria-selected="${option.id === activeRange ? "true" : "false"}"
+        >${option.label}</button>
+      `
+    )
+    .join("");
+}
+
 function buildChartLabels(candles, forecast, chartLeft, stepX, actualSlots) {
   const first = candles[0];
   const mid = candles[Math.floor((candles.length - 1) / 2)];
@@ -2690,10 +2787,9 @@ function buildChartLabels(candles, forecast, chartLeft, stepX, actualSlots) {
     { x: chartLeft, label: simplifyDateLabel(first?.date, "开始") },
     { x: chartLeft + Math.floor((candles.length - 1) / 2) * stepX, label: simplifyDateLabel(mid?.date, "中间") },
     { x: chartLeft + (actualSlots - 1) * stepX, label: simplifyDateLabel(last?.date, "今天") },
-    { x: chartLeft + actualSlots * stepX, label: forecast[0]?.label || "5天" },
-    { x: chartLeft + (actualSlots + 1) * stepX, label: forecast[1]?.label || "10天" }
+    { x: chartLeft + (actualSlots + 0.5) * stepX, label: forecast.length ? "预测" : "" }
   ];
-  return labels;
+  return labels.filter((entry) => entry.label);
 }
 
 function simplifyDateLabel(value, fallback) {
@@ -3001,6 +3097,49 @@ function formatCooldown(ms) {
   if (hours) parts.push(`${hours}小时`);
   if (minutes && parts.length < 2) parts.push(`${minutes}分钟`);
   return parts.slice(0, 2).join("");
+}
+
+async function ensureHtml2Canvas() {
+  if (window.html2canvas) return window.html2canvas;
+  if (window.__html2canvasLoading) return window.__html2canvasLoading;
+
+  window.__html2canvasLoading = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+    script.async = true;
+    script.onload = () => {
+      if (window.html2canvas) resolve(window.html2canvas);
+      else reject(new Error("截图组件加载失败"));
+    };
+    script.onerror = () => reject(new Error("截图组件下载失败"));
+    document.head.appendChild(script);
+  });
+
+  try {
+    return await window.__html2canvasLoading;
+  } finally {
+    window.__html2canvasLoading = null;
+  }
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("图片导出失败"));
+    }, "image/png");
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 
 function roundMoney(value) {
