@@ -1737,9 +1737,28 @@ textarea {
 
 .timeline-body {
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(15, 61, 62, 0.08);
-  background: rgba(255, 255, 255, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(17, 29, 44, 0.96), rgba(11, 21, 33, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   padding: 12px;
+}
+
+.timeline-body .item-head {
+  align-items: flex-start;
+}
+
+.timeline-body .item-head strong {
+  white-space: nowrap;
+  color: #dbe8f8;
+}
+
+.timeline-count {
+  padding: 6px 10px;
+  min-height: 30px;
+  font-size: 0.72rem;
+  line-height: 1;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .report-grid {

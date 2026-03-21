@@ -2256,7 +2256,7 @@ function renderReviewPanel() {
         <div class="item-title">${title} · ${code}</div>
         <div class="item-subtitle">按时间倒序展示分析、成交和价格更新</div>
       </div>
-      <span class="pill">${timeline.length} 条记录</span>
+      <span class="pill timeline-count">${timeline.length} 条记录</span>
     </div>
     <div class="timeline-list">
       ${timeline
