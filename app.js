@@ -372,7 +372,7 @@ async function addToWatchlist(code, name, onProgress = null) {
   onProgress?.(45, "拉取行情中...");
   const quote = await fetchQuote(code);
   onProgress?.(58, "模型分析中...");
-  const predictions = await buildModelPredictions(
+  const predictionBundle = await buildModelPredictions(
     {
     code,
     name: name || quote.name || code,
@@ -389,7 +389,8 @@ async function addToWatchlist(code, name, onProgress = null) {
     changePercent: quote.changePercent,
     candles: quote.candles || buildFallbackCandles(quote.closes || []),
     closes: quote.closes,
-    predictions,
+    predictions: predictionBundle.predictions,
+    predictionFailures: predictionBundle.failures,
     updatedAt: new Date().toISOString()
   };
 
@@ -434,17 +435,12 @@ async function buildModelPredictions(stock, onProgress = null) {
           rationale: result.ai.rationale
         }, stock.currentPrice);
       } catch (error) {
-        console.error(`[AI fallback] provider=${provider} code=${stock.code} message=${error.message}`);
-        const local = buildLocalAnalysis(stock, "local");
-        return normalizePredictionEntry({
-          provider: "local",
-          model: `fallback-from-${provider}`,
-          direction: local.ai.direction,
-          confidence: local.ai.confidence,
-          targetPrice: local.ai.targetPrice,
-          riskLevel: local.ai.riskLevel,
-          rationale: `${local.ai.rationale}（${renderProviderName(provider)} 调用失败，已回退到基础分析）`
-        }, stock.currentPrice);
+        console.error(`[AI failed] provider=${provider} code=${stock.code} message=${error.message}`);
+        return {
+          failed: true,
+          provider,
+          message: error.message
+        };
       } finally {
         completed += 1;
         const progress = Math.min(95, 58 + Math.round((completed / uniqueProviders.length) * 34));
@@ -453,17 +449,25 @@ async function buildModelPredictions(stock, onProgress = null) {
     })
   );
 
+  const failures = results.filter((item) => item?.failed);
+  const successes = results.filter((item) => !item?.failed);
   const externalProviders = new Set(
-    results
+    successes
       .map((item) => item.provider)
       .filter((provider) => provider === "openai" || provider === "anthropic")
   );
 
   if (externalProviders.has("openai") && externalProviders.has("anthropic")) {
-    return results.filter((item) => item.provider !== "local");
+    return {
+      predictions: successes.filter((item) => item.provider !== "local"),
+      failures
+    };
   }
 
-  return results;
+  return {
+    predictions: successes,
+    failures
+  };
 }
 
 function handleWatchlistAction(event) {
@@ -1585,6 +1589,7 @@ function renderWatchlist() {
       const expanded = appState.expandedWatchCode === item.code;
       const normalizedPredictions = getNormalizedPredictions(item);
       const displayItem = { ...item, predictions: normalizedPredictions };
+      const failureNotice = buildPredictionFailureNotice(item.predictionFailures || []);
       const topPrediction = normalizedPredictions[0];
       const recent5 = calculateRecentChange(item.closes || []);
       const changePercent = Number(item.changePercent) || 0;
@@ -1633,6 +1638,7 @@ function renderWatchlist() {
                   ${topPrediction ? `<span class="tag ${mapRiskClass(topPrediction.riskLevel)}">风险 ${topPrediction.riskLevel}</span>` : ""}
                   ${normalizedPredictions.length ? `<span class="tag">模型 ${normalizedPredictions.length} 家</span>` : ""}
                 </div>
+                ${failureNotice}
                 <div class="action-row">
                   <button class="ghost-btn" data-action="toggle-watch" data-code="${item.code}">收起</button>
                   <button class="ghost-btn" data-action="refresh-watch" data-code="${item.code}">更新</button>
@@ -1738,6 +1744,17 @@ function buildPredictionSummary(item) {
     bestTarget,
     bestGap
   };
+}
+
+function buildPredictionFailureNotice(failures) {
+  if (!failures?.length) return "";
+  return `
+    <div class="simple-banner banner-warning watch-failure-banner">
+      ${failures
+        .map((failure) => `${renderProviderName(failure.provider)} 调用失败`)
+        .join("；")}
+    </div>
+  `;
 }
 
 function buildWatchComparison(item) {

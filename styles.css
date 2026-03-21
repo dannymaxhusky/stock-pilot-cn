@@ -504,6 +504,12 @@ h2 {
   color: #ffe0a3;
 }
 
+.watch-failure-banner {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
 .ranking-grid {
   display: grid;
   gap: 10px;
