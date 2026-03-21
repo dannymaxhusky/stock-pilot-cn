@@ -152,6 +152,7 @@ function handleTabChange(event) {
   if (!button) return;
   appState.activeTab = button.dataset.tabTarget;
   saveState();
+  renderMarketStrip();
   renderTabs();
 }
 
@@ -399,6 +400,7 @@ async function addToWatchlist(code, name, onProgress = null) {
   else appState.watchlist.unshift(watchItem);
   appState.expandedWatchCode = code;
   saveState();
+  renderMarketStrip();
   renderWatchlist();
   renderRankings();
   renderMovers();
@@ -498,6 +500,7 @@ function handleWatchlistAction(event) {
   }
 
   saveState();
+  renderMarketStrip();
   renderWatchlist();
 }
 
@@ -1510,6 +1513,40 @@ function renderAll() {
 
 function renderMarketStrip() {
   if (!els.marketStrip) return;
+  const activeWatch =
+    appState.activeTab === "watchlist" && appState.expandedWatchCode
+      ? appState.watchlist.find((item) => item.code === appState.expandedWatchCode)
+      : null;
+
+  if (activeWatch) {
+    const changePercent = Number(activeWatch.changePercent) || 0;
+    const currentPrice = Number(activeWatch.currentPrice) || 0;
+    const previousClose = changePercent === -100 ? currentPrice : currentPrice / (1 + changePercent / 100);
+    const todayMove = roundMoney(currentPrice - previousClose);
+    els.marketStrip.classList.add("detail-mode");
+    els.marketStrip.innerHTML = `
+      <article class="market-ticker market-focus-card ${Number(activeWatch.changePercent) >= 0 ? "is-up" : "is-down"}">
+        <div class="ticker-head">
+          <strong>${activeWatch.name}</strong>
+          <span class="ticker-code">${activeWatch.code}</span>
+        </div>
+        <div class="market-focus-main">
+          <div class="ticker-price">${formatMoney(activeWatch.currentPrice)}</div>
+          <div class="market-focus-change ${changePercent >= 0 ? "trend-up" : "trend-down"}">
+            <strong>${formatSigned(changePercent)}%</strong>
+            <span>${formatSignedMoney(todayMove)}</span>
+          </div>
+        </div>
+        <div class="ticker-foot">
+          <span class="ticker-status">自选详情</span>
+          <div class="ticker-change ${changePercent >= 0 ? "trend-up" : "trend-down"}">${changePercent >= 0 ? "上涨中" : "下跌中"}</div>
+        </div>
+      </article>
+    `;
+    return;
+  }
+
+  els.marketStrip.classList.remove("detail-mode");
   const list = appState.indices || [];
   const marketSession = getCnMarketSession();
 

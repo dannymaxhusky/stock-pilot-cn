@@ -299,6 +299,10 @@ h2 {
   transition: background 180ms ease, backdrop-filter 180ms ease, box-shadow 180ms ease;
 }
 
+.market-strip.detail-mode {
+  grid-template-columns: 1fr;
+}
+
 .market-strip.is-stuck {
   background: linear-gradient(180deg, rgba(8, 17, 29, 0.62), rgba(8, 17, 29, 0.34), transparent);
   backdrop-filter: blur(16px) saturate(1.06);
@@ -343,6 +347,42 @@ h2 {
 
 .market-ticker.is-closed {
   opacity: 0.9;
+}
+
+.market-focus-card {
+  min-height: 54px;
+}
+
+.market-focus-card .ticker-head strong {
+  font-size: 0.86rem;
+}
+
+.market-focus-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.market-focus-card .ticker-price {
+  font-size: 1rem;
+}
+
+.market-focus-change {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  text-align: right;
+}
+
+.market-focus-change strong {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.market-focus-change span {
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .market-loading {
