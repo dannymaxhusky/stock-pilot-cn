@@ -294,6 +294,12 @@ h2 {
   padding: 1px 0 4px;
   background: linear-gradient(180deg, rgba(8, 17, 29, 0.96), rgba(8, 17, 29, 0.72), transparent);
   backdrop-filter: blur(10px);
+  transition: background 180ms ease, backdrop-filter 180ms ease, box-shadow 180ms ease;
+}
+
+.market-strip.is-stuck {
+  background: linear-gradient(180deg, rgba(8, 17, 29, 0.62), rgba(8, 17, 29, 0.34), transparent);
+  backdrop-filter: blur(16px) saturate(1.06);
 }
 
 .market-ticker {
@@ -303,6 +309,14 @@ h2 {
   border: 1px solid rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   min-height: 62px;
+  transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, backdrop-filter 180ms ease;
+}
+
+.market-strip.is-stuck .market-ticker {
+  background: linear-gradient(180deg, rgba(18, 30, 46, 0.72), rgba(10, 20, 31, 0.68));
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 18px rgba(4, 10, 20, 0.18);
+  backdrop-filter: blur(18px) saturate(1.08);
 }
 
 .market-ticker.is-up {

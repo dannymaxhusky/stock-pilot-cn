@@ -26,6 +26,7 @@ const els = {
   watchlistQuery: document.querySelector("#watchlistQuery"),
   watchlistMessage: document.querySelector("#watchlistMessage"),
   watchlistList: document.querySelector("#watchlistList"),
+  heroCard: document.querySelector(".hero-card"),
   marketStrip: document.querySelector("#marketStrip"),
   marketTopGainers: document.querySelector("#marketTopGainers"),
   marketTopLosers: document.querySelector("#marketTopLosers"),
@@ -96,6 +97,7 @@ async function boot() {
   bindEvents();
   installZoomGuards();
   registerServiceWorker();
+  bindStickyEffects();
   await Promise.all([loadServerConfig(), loadMovers(), loadIndices()]);
   await tryRestoreCloudProfile("silent");
   renderAll();
@@ -130,6 +132,19 @@ function bindEvents() {
   if (els.marketTopLosers) els.marketTopLosers.addEventListener("click", handleOpenFromRanking);
   window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
   els.installBtn.addEventListener("click", installPwa);
+}
+
+function bindStickyEffects() {
+  if (!els.marketStrip || !els.heroCard) return;
+  const updateStickyEffects = () => {
+    const heroBottom = els.heroCard.getBoundingClientRect().bottom;
+    const marketTop = els.marketStrip.getBoundingClientRect().top;
+    els.marketStrip.classList.toggle("is-stuck", marketTop <= heroBottom + 1);
+  };
+
+  window.addEventListener("scroll", updateStickyEffects, { passive: true });
+  window.addEventListener("resize", updateStickyEffects);
+  updateStickyEffects();
 }
 
 function handleTabChange(event) {
